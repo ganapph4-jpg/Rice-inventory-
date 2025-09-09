@@ -252,26 +252,26 @@
 
     /* Small Edit Button */
     .small-edit-btn {
-        background-color: #3b82f6; /* Blue */
+        background-color: #64748b; /* Slate-500 */
         color: white;
-        padding: 2px 8px; /* Smaller padding */
-        font-size: 0.75rem; /* text-xs */
-        border-radius: 4px; /* rounded */
-        margin-left: 0.25rem; /* ml-1 */
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        border-radius: 4px;
         transition: background-color 0.2s ease-in-out;
         border: none;
         cursor: pointer;
+        font-weight: 500;
     }
     .small-edit-btn:hover {
-        background-color: #2563eb; /* Darker blue on hover */
+        background-color: #475569; /* Slate-600 */
     }
     
-    /* Row highlighting for inputted data (sold > 0) */
-    .inputted-row {
-        background-color: #eff6ff !important; /* Tailwind's blue-50 */
+    /* Row highlighting for finished data entry */
+    .finished-row {
+        background-color: #f0fdf4 !important; /* Tailwind's green-50 */
     }
-    .inputted-row:hover {
-        background-color: #dbeafe !important; /* Tailwind's blue-100 */
+    .finished-row:hover {
+        background-color: #dcfce7 !important; /* Tailwind's green-100 */
     }
 
     /* Low stock highlighting (takes precedence) */
@@ -294,7 +294,13 @@
     .negative-stock-warning:hover {
       background-color: #fca5a5 !important; /* red-300 on hover */
     }
-
+    
+    /* Active row highlighting for better focus */
+    .active-row {
+        background-color: #dbeafe !important; /* Tailwind's blue-100 */
+        outline: 2px solid var(--primary); /* Blue-500 outline */
+        outline-offset: -2px;
+    }
 
     /* Responsive Adjustments */
     @media (max-width: 768px) {
@@ -376,11 +382,11 @@
           <thead>
             <tr>
               <th>PRODUCT</th>
-              <th>BEGIN <button class="small-edit-btn" onclick="editBeginningStock(currentDailyReportCategory)" aria-label="Edit beginning stock for current category">EDIT</button></th>
+              <th>BEGIN <br><button class="small-edit-btn mt-1" onclick="editBeginningStock(null)" aria-label="Edit all beginning stock">EDIT ALL</button></th>
               <th>NEW STOCK</th>
               <th>ENDING</th>
               <th>SOLD</th>
-              <th>PRICE (₱) <button class="small-edit-btn" onclick="editPrices(currentDailyReportCategory)" aria-label="Edit prices for current category">EDIT</button></th>
+              <th>PRICE (₱) <br><button class="small-edit-btn mt-1" onclick="editPrices(null)" aria-label="Edit all prices">EDIT ALL</button></th>
               <th>TOTAL SALES (₱)</th>
             </tr>
           </thead>
@@ -514,7 +520,7 @@
       <!-- Analytics Sub-Tabs -->
       <div class="mb-6 flex flex-wrap gap-2" role="tablist">
         <button id="tab-analytics-overview" class="analytics-tab active" role="tab" aria-selected="true" aria-controls="analytics-overview-content" onclick="showAnalyticsSubTab('analytics-overview-content')">Overview</button>
-        <button id="tab-analytics-charts" class="analytics-tab" role="tab" aria-selected="false" aria-controls="analytics-charts-content" onclick="showAnalyticsSubTab('analytics-charts-content')">Daily Sales</button>
+        <button id="tab-analytics-charts" class="analytics-tab" role="tab" aria-selected="false" aria-controls="analytics-charts-content" onclick="showAnalyticsSubTab('analytics-charts-content')">Charts</button>
         <button id="tab-analytics-products" class="analytics-tab" role="tab" aria-selected="false" aria-controls="analytics-products-content" onclick="showAnalyticsSubTab('analytics-products-content')">Products</button>
       </div>
       
@@ -577,13 +583,17 @@
         </div>
       </div>
 
-      <!-- Analytics Content: Daily Sales Sub-Tab -->
+      <!-- Analytics Content: Charts Sub-Tab -->
       <div id="analytics-charts-content" class="analytics-tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics-charts">
-        <div class="card p-6">
-          <h4 class="text-lg font-bold text-slate-800 mb-4">Daily Sales Breakdown</h4>
-          <div id="daily-sales-list" class="space-y-2 max-h-[450px] overflow-y-auto">
-            <!-- Daily sales data will be rendered here by JavaScript -->
-            <p class="text-center text-slate-500 py-4">Select a date range to view daily sales.</p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="card p-6">
+            <h4 class="text-lg font-bold text-slate-800 mb-4">Sales by Category</h4>
+            <canvas id="categoryChart" height="250" role="img" aria-label="Sales by Category Chart"></canvas>
+          </div>
+          
+          <div class="card p-6">
+            <h4 class="text-lg font-bold text-slate-800 mb-4">Daily Sales Trend</h4>
+            <canvas id="salesTrendChart" height="250" role="img" aria-label="Daily Sales Trend Chart"></canvas>
           </div>
         </div>
       </div>
@@ -791,7 +801,7 @@
     }
 
     /**
-     * Finalizes the current day's report.
+     * Finalizes the current day's report and prepares the next day's report.
      */
     async function finalizeReport() {
         const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
@@ -803,10 +813,39 @@
                 reportIndex.push(todayDateString);
                 await localforage.setItem(LOCAL_FORAGE_KEYS.REPORT_INDEX, reportIndex);
             }
-            Toast.fire({ icon: 'success', title: 'Report Submitted!' });
+
+            // --- Automatically create tomorrow's report ---
+            const tomorrowDateString = dayjs(todayDateString).add(1, 'day').format('YYYY-MM-DD');
+            const tomorrowReportKey = `${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${tomorrowDateString}`;
+
+            const existingTomorrowReport = await localforage.getItem(tomorrowReportKey);
+            if (!existingTomorrowReport) {
+                const newTomorrowData = {};
+                shopProducts.forEach(p => {
+                    const todayEndStock = report.data[p.id]?.end || 0;
+                    newTomorrowData[p.id] = {
+                        begin: todayEndStock,
+                        newStock: 0,
+                        end: todayEndStock,
+                        price: p.price,
+                        cost: p.cost
+                    };
+                });
+
+                const newTomorrowReport = {
+                    date: tomorrowDateString,
+                    finalized: false,
+                    data: newTomorrowData
+                };
+                
+                await localforage.setItem(tomorrowReportKey, newTomorrowReport);
+            }
+            
+            Toast.fire({ icon: 'success', title: "Report Submitted! Tomorrow's report is ready." });
             showInventory(null);
         }
     }
+
 
     // --- UI Rendering Functions ---
 
@@ -870,9 +909,9 @@
                 if (!product) continue;
 
                 const item = report.data[productId];
-                const sold = Math.max(0, (item.begin + item.newStock) - item.end);
-                const sales = sold * item.price;
-                const profit = sales - (sold * item.cost);
+                const sold = (item.begin + item.newStock) - item.end;
+                const sales = Math.max(0, sold) * item.price;
+                const profit = sales - (Math.max(0, sold) * item.cost);
 
                 totalSales += sales;
                 totalProfit += profit;
@@ -929,7 +968,16 @@
                 hasProductsInAnyCategory = true;
                 
                 if (!category) {
-                    tableHtml += `<tr class="bg-slate-100"><td colspan="7" class="p-3 font-bold text-slate-800 text-left">${cat}</td></tr>`;
+                    tableHtml += `
+                    <tr class="bg-slate-100">
+                        <td class="p-2 text-left font-bold text-slate-800">${cat}</td>
+                        ${isEditable ? `
+                        <td><button class="small-edit-btn" onclick="editBeginningStock('${cat}')" aria-label="Edit beginning stock for ${cat}">Edit</button></td>
+                        <td></td><td></td><td></td>
+                        <td><button class="small-edit-btn" onclick="editPrices('${cat}')" aria-label="Edit prices for ${cat}">Edit</button></td>
+                        ` : '<td colspan="5"></td>'}
+                        <td></td>
+                    </tr>`;
                 }
 
                 let categoryTotalSold = 0;
@@ -937,8 +985,8 @@
 
                 productsInCategory.forEach(product => {
                     const data = report.data[product.id] || { begin: 0, newStock: 0, end: 0, price: product.price, cost: product.cost };
-                    const sold = Math.max(0, (data.begin + data.newStock) - data.end);
-                    const totalSales = sold * data.price;
+                    const sold = (data.begin + data.newStock) - data.end;
+                    const totalSales = Math.max(0, sold) * data.price;
 
                     categoryTotalSold += sold;
                     categoryTotalSales += totalSales;
@@ -946,11 +994,11 @@
                     const rowClasses = [];
                     if (data.end < 0) {
                         rowClasses.push('negative-stock-warning');
-                    } else if (data.end <= (product.minStock || 0)) {
+                    } else if (product.minStock > 0 && data.end <= product.minStock) {
                         rowClasses.push('low-stock');
                     }
-                    if (sold > 0) {
-                        rowClasses.push('inputted-row');
+                    if (sold !== 0) {
+                        rowClasses.push('finished-row');
                     }
 
                     tableHtml += `<tr data-id="${product.id}" class="${rowClasses.join(' ')}">
@@ -966,8 +1014,8 @@
 
                 const cleanCat = cat.replace(' ', '-');
                 tableHtml += `
-                <tr class="bg-green-50 text-green-800 font-bold">
-                    <td colspan="4" class="text-right p-3">Grand Total for ${cat}</td>
+                <tr class="bg-slate-50 text-slate-700 font-bold">
+                    <td colspan="4" class="text-right p-3">Total for ${cat}</td>
                     <td id="category-total-sold-${cleanCat}" class="p-3">${categoryTotalSold}</td>
                     <td></td>
                     <td id="category-total-sales-${cleanCat}" class="p-3">₱${formatCurrency(categoryTotalSales)}</td>
@@ -985,7 +1033,7 @@
 
         if (!category && hasProductsInAnyCategory) {
              footerHtml += `
-             <tr class="bg-green-600 text-white font-bold text-lg sticky bottom-0 z-10">
+             <tr class="bg-blue-600 text-white font-bold text-lg sticky bottom-0 z-10">
                 <td colspan="4" class="text-right p-4">OVERALL GRAND TOTAL</td>
                 <td id="overall-total-sold" class="p-4">${overallTotalSold}</td>
                 <td></td>
@@ -1069,12 +1117,12 @@
         const sold = (begin + newStock) - end;
         soldInput.value = sold;
 
-        const totalSales = sold * data.price;
+        const totalSales = Math.max(0, sold) * data.price;
         row.querySelector('.total-sales-val').textContent = formatCurrency(totalSales);
         
         const product = shopProducts.find(p => p.id === productId);
         
-        row.classList.remove('negative-stock-warning', 'low-stock', 'inputted-row');
+        row.classList.remove('negative-stock-warning', 'low-stock', 'finished-row');
 
         if (end < 0) {
             row.classList.add('negative-stock-warning');
@@ -1082,8 +1130,8 @@
             row.classList.add('low-stock');
         }
 
-        if (sold > 0) {
-            row.classList.add('inputted-row');
+        if (sold !== 0) {
+            row.classList.add('finished-row');
         }
 
         await saveInventoryData(productId, { newStock: newStock, end: end });
@@ -1114,9 +1162,9 @@
 
         sortedProducts.forEach(product => {
             const data = report.data[product.id] || { begin: 0, newStock: 0, end: 0, price: product.price, cost: product.cost };
-            const sold = Math.max(0, (data.begin + data.newStock) - data.end);
-            const totalSales = sold * data.price;
-            const totalCost = sold * data.cost;
+            const sold = (data.begin + data.newStock) - data.end;
+            const totalSales = Math.max(0, sold) * data.price;
+            const totalCost = Math.max(0, sold) * data.cost;
             const profit = totalSales - totalCost;
 
             totalSalesReview += totalSales;
@@ -1229,8 +1277,8 @@
                 const cost = product.cost;
 
                 const sold = (begin + newStock) - end;
-                const sales = sold * price;
-                const profit = sales - (sold * cost);
+                const sales = Math.max(0, sold) * price;
+                const profit = sales - (Math.max(0, sold) * cost);
 
                 row.querySelector('.swal-sold').textContent = sold;
                 row.querySelector('.swal-sales').textContent = `₱${formatCurrency(sales)}`;
@@ -1533,9 +1581,9 @@
                 if (!product) continue;
 
                 const item = report.data[productId];
-                const sold = Math.max(0, (item.begin + item.newStock) - item.end);
-                const sales = sold * item.price;
-                const profit = sales - (sold * item.cost);
+                const sold = (item.begin + item.newStock) - item.end;
+                const sales = Math.max(0, sold) * item.price;
+                const profit = sales - (Math.max(0, sold) * item.cost);
 
                 totalSales += sales;
                 totalProfit += profit;
@@ -1563,11 +1611,104 @@
 
         const chartsContent = document.getElementById('analytics-charts-content');
         if (chartsContent && !chartsContent.classList.contains('hidden')) {
-            // We now render the daily sales list instead of the charts
-            renderDailySalesList(salesTrend);
+            renderCategoryChart(salesByCategory);
+            renderSalesTrendChart(salesTrend);
         }
         
         renderTopPerformingProducts(productPerformance);
+    }
+
+    /**
+     * Renders the Sales by Category chart.
+     */
+    function renderCategoryChart(data) {
+        if (categoryChartInstance) categoryChartInstance.destroy();
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        const labels = Object.keys(data);
+        const values = Object.values(data);
+        const backgroundColors = [
+            'rgba(59, 130, 246, 0.7)', 'rgba(16, 185, 129, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(245, 158, 11, 0.7)'
+        ];
+        const borderColors = [
+            'rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)', 'rgba(139, 92, 246, 1)', 'rgba(245, 158, 11, 1)'
+        ];
+
+        categoryChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 12 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return (context.label || '') + ': ₱' + formatCurrency(context.parsed);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Renders the Daily Sales Trend chart.
+     */
+    function renderSalesTrendChart(data) {
+        if (salesTrendChartInstance) salesTrendChartInstance.destroy();
+
+        const ctx = document.getElementById('salesTrendChart').getContext('2d');
+        const labels = Object.keys(data).sort();
+        const values = labels.map(date => data[date]);
+
+        salesTrendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Daily Sales (₱)',
+                    data: values,
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', tooltipFormat: 'MMM D, YYYY', displayFormats: { day: 'MMM D' } },
+                        title: { display: true, text: 'Date' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Sales (₱)' },
+                        ticks: { callback: value => '₱' + formatCurrency(value) }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: context => context.dataset.label + ': ₱' + formatCurrency(context.parsed.y)
+                        }
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -1608,33 +1749,6 @@
             </div>`).join('');
     }
     
-    /**
-     * Renders a list of daily sales for the selected period.
-     */
-    function renderDailySalesList(salesData) {
-        const container = document.getElementById('daily-sales-list');
-        const dates = Object.keys(salesData);
-
-        if (dates.length === 0) {
-            container.innerHTML = '<p class="text-center text-slate-500 py-4">No sales data found for the selected period.</p>';
-            return;
-        }
-
-        // Sort dates from newest to oldest
-        dates.sort((a, b) => b.localeCompare(a));
-
-        container.innerHTML = dates.map(date => {
-            const sales = salesData[date];
-            const formattedDate = dayjs(date).format('MMM D, YYYY');
-            return `
-                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                    <span class="font-medium text-slate-800">${formattedDate}</span>
-                    <span class="font-bold text-lg text-green-600">₱${formatCurrency(sales)}</span>
-                </div>
-            `;
-        }).join('');
-    }
-
     // --- Dashboard Functions ---
     /**
      * Renders the main dashboard with key metrics for the current day.
@@ -1939,7 +2053,7 @@
     }
     
     /**
-     * Allows editing the beginning stock for products.
+     * Allows editing the beginning stock for all or a filtered set of products.
      */
     async function editBeginningStock(categoryFilter = null) {
         let initialReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
@@ -1960,61 +2074,57 @@
             }
         }
         
-        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a,b) => a.name.localeCompare(b.name));
+        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
         if (products.length === 0) {
-             return Swal.fire('No Products', 'No products found to edit in this category.', 'info');
+             return Swal.fire('No Products', 'No products found to edit.', 'info');
         }
-
-        let modalHtml = `<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">
-            ${products.map(p => `
+        
+        let modalHtml = '<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">';
+        let currentCategory = '';
+        products.forEach(p => {
+            if (p.category !== currentCategory && !categoryFilter) {
+                currentCategory = p.category;
+                modalHtml += `<div class="font-bold text-lg p-2 bg-slate-100 rounded my-2">${currentCategory}</div>`;
+            }
+            modalHtml += `
                 <div class="grid grid-cols-2 gap-4 items-center mb-2 p-2 border-b" data-product-id="${p.id}">
                     <label for="begin-stock-${p.id}" class="font-medium">${p.name}</label>
                     <input type="number" id="begin-stock-${p.id}" value="${initialReport.data[p.id]?.begin || 0}" class="border p-1 w-full rounded" oninput="validateNumberInput(this, true)">
-                </div>`).join('')}
-        </div>`;
+                </div>`;
+        });
+        modalHtml += '</div>';
 
         const { isConfirmed } = await Swal.fire({ 
-            title: `Edit Beginning Stock for ${dayjs().format('MMMM D, YYYY')}`, 
+            title: `Edit Beginning Stock ${categoryFilter ? `for ${categoryFilter}` : ''}`, 
             html: modalHtml, 
             width: '90%', maxWidth: '600px', 
             showCancelButton: true, 
             preConfirm: async () => {
                 let hasErrors = false;
                 document.querySelectorAll('.swal2-html-container input[type="number"]').forEach(input => {
-                    if (!validateNumberInput(input, true)) {
-                        hasErrors = true;
-                    }
+                    if (!validateNumberInput(input, true)) hasErrors = true;
                 });
-
                 if (hasErrors) {
                     Swal.showValidationMessage('Please correct invalid inputs (must be non-negative numbers).');
                     return false;
                 }
-
                 const freshReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
-
                 document.querySelectorAll('.swal2-html-container [data-product-id]').forEach(row => {
                     const productId = row.dataset.productId;
                     const newBegin = parseInt(row.querySelector('input').value) || 0;
-                    
                     let productData = freshReport.data[productId];
-
                     if (productData) {
+                        const oldBegin = productData.begin || 0;
+                        const diff = newBegin - oldBegin;
                         productData.begin = newBegin;
+                        productData.end = (productData.end || 0) + diff;
                     } else {
                         const productInfo = shopProducts.find(p => p.id === productId);
                         if (productInfo) {
-                            freshReport.data[productId] = {
-                                begin: newBegin,
-                                newStock: 0,
-                                end: newBegin,
-                                price: productInfo.price,
-                                cost: productInfo.cost
-                            };
+                            freshReport.data[productId] = { begin: newBegin, newStock: 0, end: newBegin, price: productInfo.price, cost: productInfo.cost };
                         }
                     }
                 });
-
                 await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, freshReport);
                 return true;
             }
@@ -2026,24 +2136,31 @@
     }
 
     /**
-     * Allows editing the selling prices for products.
+     * Allows editing the selling prices for all or a filtered set of products.
      */
     async function editPrices(categoryFilter = null) {
-        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a,b) => a.name.localeCompare(b.name));
+        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
         if (products.length === 0) {
-             return Swal.fire('No Products', 'No products found to edit in this category.', 'info');
+             return Swal.fire('No Products', 'No products found to edit.', 'info');
         }
 
-        let modalHtml = `<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">
-            ${products.map(p => `
+        let modalHtml = '<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">';
+        let currentCategory = '';
+        products.forEach(p => {
+            if (p.category !== currentCategory && !categoryFilter) {
+                currentCategory = p.category;
+                modalHtml += `<div class="font-bold text-lg p-2 bg-slate-100 rounded my-2">${currentCategory}</div>`;
+            }
+            modalHtml += `
                 <div class="grid grid-cols-2 gap-4 items-center mb-2 p-2 border-b" data-product-id="${p.id}">
                     <label for="price-input-${p.id}" class="font-medium">${p.name}</label>
                     <input type="number" id="price-input-${p.id}" step="0.01" value="${p.price.toFixed(2)}" class="border p-1 w-full rounded" oninput="validateNumberInput(this)">
-                </div>`).join('')}
-        </div>`;
+                </div>`;
+        });
+        modalHtml += '</div>';
 
         const { isConfirmed } = await Swal.fire({ 
-            title: `Edit Product Selling Prices`, 
+            title: `Edit Selling Prices ${categoryFilter ? `for ${categoryFilter}` : ''}`, 
             html: modalHtml, 
             width: '90%', maxWidth: '600px', 
             showCancelButton: true, 
@@ -2053,15 +2170,12 @@
                     Swal.showValidationMessage('Please correct invalid inputs (must be positive numbers).'); 
                     return false; 
                 }
-
                 const todayReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
                 document.querySelectorAll('.swal2-html-container [data-product-id]').forEach(row => {
                     const productId = row.dataset.productId;
                     const newPrice = parseFloat(row.querySelector('input').value) || 0;
-                    
                     const productInShop = shopProducts.find(p => p.id === productId);
                     if (productInShop) productInShop.price = newPrice;
-
                     if(todayReport && !todayReport.finalized && todayReport.data[productId]) {
                         todayReport.data[productId].price = newPrice;
                     }
@@ -2077,6 +2191,7 @@
             renderInventoryTable(currentDailyReportCategory);
         }
     }
+
 
     /**
      * Exports all application data to a JSON file.
@@ -2166,6 +2281,30 @@
 
     // --- Event Listeners ---
     document.addEventListener('DOMContentLoaded', initializeApp);
+
+    // Event delegation for active row highlighting
+    const inventoryTbody = document.getElementById('inventory-tbody');
+    
+    inventoryTbody.addEventListener('focusin', (event) => {
+        if (event.target.matches('.new-stock-input, .end-input')) {
+            inventoryTbody.querySelectorAll('.active-row').forEach(row => {
+                row.classList.remove('active-row');
+            });
+            const activeRow = event.target.closest('tr');
+            if (activeRow) {
+                activeRow.classList.add('active-row');
+            }
+        }
+    });
+
+    inventoryTbody.addEventListener('focusout', (event) => {
+        if (event.target.matches('.new-stock-input, .end-input')) {
+            const activeRow = event.target.closest('tr');
+            if (activeRow) {
+                activeRow.classList.remove('active-row');
+            }
+        }
+    });
   </script>
 </body>
 </html>
