@@ -1,0 +1,2172 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rice Inventory Management System</title>
+  <meta name="description" content="A simple, offline-first system for managing rice sales, inventory, and profit tracking.">
+  
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/isBetween.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/localforage/dist/localforage.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-dayjs-3@latest/dist/chartjs-adapter-dayjs-3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+
+  <style>
+    /* Custom CSS Variables for easy theming */
+    :root {
+      --primary: #3b82f6; /* Blue-500 */
+      --secondary: #10b981; /* Green-500 */
+      --accent: #f59e0b; /* Amber-500 */
+      --light: #f8fafc; /* Slate-50 */
+      --dark: #1e293b; /* Slate-800 */
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background-color: var(--light); 
+      color: #334155; /* Slate-700 */
+      margin: 0;
+    }
+    
+    /* View Transition Styling */
+    .main-view { 
+      display: none; 
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .main-view.active { 
+      display: block; 
+    }
+
+    /* Table Styling */
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      background: #fff; 
+      font-size: 14px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Shadow-sm */
+      border-radius: 8px;
+      overflow: hidden; /* Ensures rounded corners are applied to inner elements */
+    }
+    
+    th, td { 
+      border: 1px solid #e2e8f0; /* Slate-200 */
+      padding: 8px 12px; 
+      text-align: center; 
+    }
+    
+    th { 
+      background-color: #f1f5f9; /* Slate-100 */
+      font-weight: 600;
+      position: sticky; 
+      top: 0; 
+      z-index: 10; 
+    }
+    
+    /* Input Styling */
+    input[type="number"], input[type="text"], input[type="password"], input[type="date"], select { 
+      width: 100%; 
+      padding: 6px; 
+      font-size: 13px; 
+      box-sizing: border-box; 
+      border-radius: 4px; 
+      border: 1px solid #cbd5e1; /* Slate-300 */
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    input[type="number"]:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="date"]:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* Focus ring primary-200 */
+    }
+
+    /* Validation Feedback */
+    input.invalid {
+        border-color: #ef4444 !important; /* Red-500 */
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important; /* Focus ring red-200 */
+    }
+    
+    input:disabled { 
+      background-color: #f8fafc; /* Slate-50 */
+      color: #64748b; /* Slate-500 */
+      border: 1px solid #e2e8f0; /* Slate-200 */
+      cursor: not-allowed; 
+    }
+    
+    /* Loader Animation */
+    .loader { 
+      border: 4px solid #f3f3f3; /* Neutral light gray */
+      border-top: 4px solid var(--primary); 
+      border-radius: 50%; 
+      width: 30px; 
+      height: 30px; 
+      animation: spin 1s linear infinite; 
+      margin: 0 auto; 
+    }
+    
+    @keyframes spin { 
+      0% { transform: rotate(0deg); } 
+      100% { transform: rotate(360deg); } 
+    }
+    
+    /* Settings Panel Styling */
+    #settings-panel { 
+      transition: transform 0.3s ease-in-out; 
+      transform: translateX(100%); /* Hidden by default */
+      box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    #settings-panel.open { 
+      transform: translateX(0); 
+    }
+    
+    /* Card Component */
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* Shadow-md */
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px rgba(0,0,0,0.1); /* Shadow-lg */
+    }
+    
+    /* Main Navigation Tabs */
+    .nav-tab {
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+      user-select: none; /* Prevent text selection */
+    }
+    
+    .nav-tab.active {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    /* Settings Panel Tabs */
+    .settings-tab {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid #e2e8f0; /* Slate-200 */
+      background-color: #f8fafc; /* Slate-50 */
+      color: #475569; /* Slate-600 */
+    }
+
+    .settings-tab:hover {
+      background-color: #e2e8f0; /* Slate-200 */
+      color: #1e293b; /* Slate-800 */
+    }
+
+    .settings-tab.active {
+      background-color: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Analytics Tabs - NEW STYLING, similar to settings tabs */
+    .analytics-tab {
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s;
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid #e2e8f0; /* Slate-200 */
+        background-color: #f8fafc; /* Slate-50 */
+        color: #475569; /* Slate-600 */
+    }
+
+    .analytics-tab:hover {
+        background-color: #e2e8f0; /* Slate-200 */
+        color: #1e293b; /* Slate-800 */
+    }
+
+    .analytics-tab.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    
+    /* Button Styles */
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn-primary:hover {
+      background-color: #2563eb; /* Blue-600 */
+    }
+    
+    .btn-success {
+      background-color: var(--secondary);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn-success:hover {
+      background-color: #059669; /* Green-600 */
+    }
+    
+    /* Stat Card Specifics */
+    .stat-card {
+      padding: 20px;
+      border-left: 4px solid;
+    }
+    
+    .category-25 { border-left-color: #3b82f6; } /* Blue-500 */
+    .category-10 { border-left-color: #10b981; } /* Green-500 */
+    .category-5 { border-left-color: #8b5cf6; } /* Purple-500 */
+    .category-kg { border-left-color: #f59e0b; } /* Amber-500 */
+
+    /* Small Edit Button */
+    .small-edit-btn {
+        background-color: #3b82f6; /* Blue */
+        color: white;
+        padding: 2px 8px; /* Smaller padding */
+        font-size: 0.75rem; /* text-xs */
+        border-radius: 4px; /* rounded */
+        margin-left: 0.25rem; /* ml-1 */
+        transition: background-color 0.2s ease-in-out;
+        border: none;
+        cursor: pointer;
+    }
+    .small-edit-btn:hover {
+        background-color: #2563eb; /* Darker blue on hover */
+    }
+    
+    /* Row highlighting for inputted data (sold > 0) */
+    .inputted-row {
+        background-color: #eff6ff !important; /* Tailwind's blue-50 */
+    }
+    .inputted-row:hover {
+        background-color: #dbeafe !important; /* Tailwind's blue-100 */
+    }
+
+    /* Low stock highlighting (takes precedence) */
+    .low-stock {
+        background-color: #fef2f2 !important; /* Red-50 (light red) */
+    }
+    .low-stock:hover {
+      background-color: #fee2e2 !important; /* Red-100 on hover */
+    }
+    
+    /* Negative stock warning styling */
+    .negative-stock-warning {
+        background-color: #fecaca !important; /* Tailwind's red-200 */
+        border-left: 4px solid #dc2626 !important; /* Tailwind's red-600 */
+    }
+    .negative-stock-warning input {
+        border-color: #dc2626 !important; /* red-600 */
+        color: #dc2626 !important; /* red-600 */
+    }
+    .negative-stock-warning:hover {
+      background-color: #fca5a5 !important; /* red-300 on hover */
+    }
+
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+      table {
+        font-size: 12px;
+      }
+      
+      th, td {
+        padding: 6px 8px;
+      }
+      
+      .card {
+        margin-bottom: 16px;
+      }
+      .settings-tab, .analytics-tab {
+        flex-grow: 1; /* Allow tabs to grow and fill space on small screens */
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body class="p-4">
+
+  <!-- Shared Header -->
+  <div class="max-w-7xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center gap-4" role="banner">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">Rice Inventory Management</h1>
+      <p class="text-sm text-slate-500">Track sales, inventory, and profits</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+        <span id="current-date-display" aria-live="polite"></span>
+      </div>
+      <button onclick="showHistory()" title="Report History" aria-label="View Report History" class="text-slate-600 hover:text-blue-600 p-2 transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+      </button>
+      <button onclick="openSettingsWithPassword()" title="Settings" aria-label="Open Settings" class="text-slate-600 hover:text-blue-600 p-2 transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <nav class="max-w-7xl mx-auto mb-6 bg-white rounded-lg p-1 shadow-sm flex" aria-label="Main Navigation">
+    <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" onclick="showView('dashboard-view')">Dashboard</button>
+    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="daily-report-view" onclick="showInventory(null)">Daily Report</button>
+    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="repack-view" onclick="showView('repack-view')">Repack Per Kilo</button>
+  </nav>
+
+  <!-- VIEW 1: Dashboard -->
+  <main id="dashboard-view" class="main-view active max-w-7xl mx-auto" role="main">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold text-slate-800">Today's Overview</h2>
+        <p class="text-sm text-slate-500" id="dashboard-date"></p>
+      </div>
+      <div id="dashboard-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Content generated by renderDashboard() -->
+        <div class="col-span-full text-center p-8"><div class="loader" role="status" aria-label="Loading dashboard"></div></div>
+      </div>
+  </main>
+
+
+  <!-- VIEW 2: Daily Report / Inventory -->
+  <div id="daily-report-view" class="main-view max-w-7xl mx-auto" role="main" aria-labelledby="report-title">
+    <div class="mb-6 p-5 bg-white rounded-lg shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-4">
+        <h2 id="report-title" class="text-xl font-bold text-slate-800">Daily Inventory Report</h2>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table aria-live="polite" aria-atomic="true">
+          <thead>
+            <tr>
+              <th>PRODUCT</th>
+              <th>BEGIN <button class="small-edit-btn" onclick="editBeginningStock(currentDailyReportCategory)" aria-label="Edit beginning stock for current category">EDIT</button></th>
+              <th>NEW STOCK</th>
+              <th>ENDING</th>
+              <th>SOLD</th>
+              <th>PRICE (₱) <button class="small-edit-btn" onclick="editPrices(currentDailyReportCategory)" aria-label="Edit prices for current category">EDIT</button></th>
+              <th>TOTAL SALES (₱)</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-tbody">
+            <tr><td colspan="7" class="text-center p-4"><div class="loader" role="status" aria-label="Loading inventory report"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 3: REPACK PER KILO -->
+  <div id="repack-view" class="main-view max-w-4xl mx-auto" role="region" aria-labelledby="repack-title">
+    <div class="mb-6 p-5 bg-white rounded-lg shadow-sm">
+        <h2 id="repack-title" class="text-2xl font-bold text-slate-800 text-center">Repack Rice for Per Kilo Sales</h2>
+        <p class="text-center text-slate-500 mt-1">Transfer stock from a 25 KG sack to its matching Per Kilo product.</p>
+    </div>
+    <div id="repack-container" class="card p-8" aria-live="polite" aria-atomic="true">
+        <p class="text-center text-slate-500 py-4"><div class="loader" role="status" aria-label="Loading repack options"></div></p>
+    </div>
+  </div>
+
+
+  <!-- VIEW 5: Report History -->
+  <div id="history-view" class="main-view max-w-7xl mx-auto" role="region" aria-labelledby="history-title">
+    <div class="mb-6 flex items-center gap-4">
+      <h2 id="history-title" class="text-xl font-bold text-slate-700">Report History</h2>
+    </div>
+    
+    <div class="mb-4 flex flex-col sm:flex-row items-center gap-4">
+      <input type="text" id="history-search" placeholder="Search reports by date or content..." class="border border-slate-300 rounded-md py-2 px-3 flex-grow" oninput="filterHistory()" aria-label="Search report history">
+      <select id="history-sort" class="border border-slate-300 rounded-md py-2 px-3" onchange="filterHistory()" aria-label="Sort report history">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+      </select>
+    </div>
+    
+    <div id="history-list" class="bg-white rounded-lg shadow divide-y" aria-live="polite" aria-atomic="true">
+      <div class="p-4 text-center text-slate-500"><div class="loader" role="status" aria-label="Loading reports"></div></div>
+    </div>
+  </div>
+  
+  <!-- Settings Panel -->
+  <div id="settings-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-lg z-50 p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1">
+    <div class="flex justify-between items-center mb-6">
+      <h2 id="settings-title" class="text-2xl font-bold text-slate-800">Settings</h2>
+      <button onclick="closeSettingsPanel()" class="text-slate-500 hover:text-red-500 text-3xl transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50" aria-label="Close settings panel">&times;</button>
+    </div>
+    
+    <!-- Settings Tabs -->
+    <div class="mb-6 flex flex-wrap gap-2" role="tablist">
+      <button id="tab-product-management" class="settings-tab active" role="tab" aria-selected="true" aria-controls="settings-product-management-content" onclick="showSettingsTab('settings-product-management-content')">Product Management</button>
+      <button id="tab-security" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-security-content" onclick="showSettingsTab('settings-security-content')">Security</button>
+      <button id="tab-analytics" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-analytics-content" onclick="showSettingsTab('settings-analytics-content')">Analytics</button>
+      <button id="tab-data-management" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-data-management-content" onclick="showSettingsTab('settings-data-management-content')">Data Management</button>
+    </div>
+
+    <!-- Settings Content Sections -->
+    <div id="settings-product-management-content" class="settings-tab-content" role="tabpanel" aria-labelledby="tab-product-management">
+      <div class="p-4 border rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-3 sr-only">Product Management</h3>
+        <div id="product-list-container" class="space-y-2 mb-4 max-h-64 overflow-y-auto border p-2 rounded bg-slate-50" aria-live="polite" aria-atomic="true">
+          <p class="text-center text-slate-500">No products added yet.</p>
+        </div>
+        
+        <div class="p-3 bg-slate-50 rounded border">
+          <h4 id="product-form-title" class="font-semibold mb-2">Add New Product</h4>
+          <input type="hidden" id="product-id">
+          <div class="space-y-3">
+            <div>
+              <label for="product-name" class="block text-sm font-medium text-slate-700 mb-1">Product Name</label>
+              <input id="product-name" type="text" placeholder="e.g., Kylo" class="border border-slate-300 p-2 w-full rounded-md" aria-required="true">
+            </div>
+            <div>
+              <label for="product-price" class="block text-sm font-medium text-slate-700 mb-1">Selling Price (₱)</label>
+              <input id="product-price" type="number" step="0.01" placeholder="e.g., 1300.00" class="border border-slate-300 p-2 w-full rounded-md" oninput="validateNumberInput(this)" aria-required="true">
+            </div>
+            <div>
+              <label for="product-cost" class="block text-sm font-medium text-slate-700 mb-1">Cost Price / Capital (₱)</label>
+              <input id="product-cost" type="number" step="0.01" placeholder="e.g., 1150.00" class="border border-slate-300 p-2 w-full rounded-md" oninput="validateNumberInput(this)" aria-required="true">
+            </div>
+            <div>
+              <label for="product-minstock" class="block text-sm font-medium text-slate-700 mb-1">Minimum Stock Level</label>
+              <input id="product-minstock" type="number" placeholder="e.g., 5" class="border border-slate-300 p-2 w-full rounded-md" oninput="validateNumberInput(this, true)" aria-required="true">
+            </div>
+            <div>
+              <label for="product-category" class="block text-sm font-medium text-slate-700 mb-1">Category</label>
+              <select id="product-category" class="border border-slate-300 p-2 w-full rounded-md" aria-required="true">
+                <option value="25 KG">25 KG</option>
+                <option value="10 KG">10 KG</option>
+                <option value="5 KG">5 KG</option>
+                <option value="Per Kilo">Per Kilo</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="saveProduct()" class="btn-success flex-1">Save Product</button>
+              <button onclick="clearProductForm()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-md flex-1 hover:bg-slate-300 transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="settings-security-content" class="settings-tab-content hidden" role="tabpanel" aria-labelledby="tab-security">
+      <div class="p-4 border rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-3 sr-only">Security</h3>
+        <div class="space-y-3">
+          <div>
+            <label for="currentPassword" class="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+            <input id="currentPassword" type="password" class="border border-slate-300 p-2 w-full rounded-md" autocomplete="current-password">
+          </div>
+          <div>
+            <label for="newPassword" class="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+            <input id="newPassword" type="password" class="border border-slate-300 p-2 w-full rounded-md" autocomplete="new-password">
+          </div>
+          <div>
+            <label for="confirmPassword" class="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+            <input id="confirmPassword" type="password" class="border border-slate-300 p-2 w-full rounded-md" autocomplete="new-password">
+          </div>
+        </div>
+        <button onclick="savePassword()" class="btn-primary w-full mt-4">Change Password</button>
+      </div>
+    </div>
+    
+    <!-- Analytics Content (Moved back into settings) -->
+    <div id="settings-analytics-content" class="settings-tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics">
+      <div class="mb-6 flex items-center gap-4">
+        <h3 class="text-xl font-bold text-slate-700">Sales Analytics</h3>
+      </div>
+
+      <!-- Analytics Sub-Tabs -->
+      <div class="mb-6 flex flex-wrap gap-2" role="tablist">
+        <button id="tab-analytics-overview" class="analytics-tab active" role="tab" aria-selected="true" aria-controls="analytics-overview-content" onclick="showAnalyticsSubTab('analytics-overview-content')">Overview</button>
+        <button id="tab-analytics-charts" class="analytics-tab" role="tab" aria-selected="false" aria-controls="analytics-charts-content" onclick="showAnalyticsSubTab('analytics-charts-content')">Daily Sales</button>
+        <button id="tab-analytics-products" class="analytics-tab" role="tab" aria-selected="false" aria-controls="analytics-products-content" onclick="showAnalyticsSubTab('analytics-products-content')">Products</button>
+      </div>
+      
+      <!-- Analytics Content: Overview Sub-Tab -->
+      <div id="analytics-overview-content" class="analytics-tab-content" role="tabpanel" aria-labelledby="tab-analytics-overview">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="card p-6">
+            <h4 class="text-lg font-bold text-slate-800 mb-4">Report Options</h4>
+            <div class="space-y-3">
+              <div>
+                <label for="analytics-mode-select" class="block text-sm font-medium text-slate-700 mb-1">Select Report Type</label>
+                <select id="analytics-mode-select" class="w-full border border-slate-300 rounded-md py-2 px-3" onchange="toggleAnalyticsDateInputs()">
+                  <option value="daily">Daily Breakdown</option>
+                  <option value="range">Date Range Report</option>
+                </select>
+              </div>
+
+              <div id="daily-date-input">
+                <label for="analytics-single-date" class="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
+                <input type="date" id="analytics-single-date" class="w-full border border-slate-300 rounded-md py-2 px-3">
+              </div>
+
+              <div id="range-date-inputs" class="hidden">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label for="analytics-from-date" class="block text-sm font-medium text-slate-700 mb-1">From Date</label>
+                    <input type="date" id="analytics-from-date" class="w-full border border-slate-300 rounded-md py-2 px-3">
+                  </div>
+                  <div>
+                    <label for="analytics-to-date" class="block text-sm font-medium text-slate-700 mb-1">To Date</label>
+                    <input type="date" id="analytics-to-date" class="w-full border border-slate-300 rounded-md py-2 px-3">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button onclick="loadAnalytics()" class="w-full btn-primary mt-4">Generate Report</button>
+          </div>
+          
+          <div class="card p-6" aria-live="polite" aria-atomic="true">
+            <h4 class="text-lg font-bold text-slate-800 mb-4">Summary</h4>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600">Total Sales</span>
+                <span id="analytics-total-sales" class="font-semibold">₱0.00</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600">Total Profit</span>
+                <span id="analytics-total-profit" class="font-semibold">₱0.00</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600">Average Daily Sales</span>
+                <span id="analytics-avg-sales" class="font-semibold">₱0.00</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600">Average Profit Margin</span>
+                <span id="analytics-avg-margin" class="font-semibold">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics Content: Daily Sales Sub-Tab -->
+      <div id="analytics-charts-content" class="analytics-tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics-charts">
+        <div class="card p-6">
+          <h4 class="text-lg font-bold text-slate-800 mb-4">Daily Sales Breakdown</h4>
+          <div id="daily-sales-list" class="space-y-2 max-h-[450px] overflow-y-auto">
+            <!-- Daily sales data will be rendered here by JavaScript -->
+            <p class="text-center text-slate-500 py-4">Select a date range to view daily sales.</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Analytics Content: Products Sub-Tab -->
+      <div id="analytics-products-content" class="analytics-tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics-products">
+        <div class="card p-6">
+          <h4 class="text-lg font-bold text-slate-800 mb-4">Top Performing Products</h4>
+          <div id="analytics-top-products" class="space-y-3">
+            <p class="text-center text-slate-500 py-4">Select a date range to view analytics</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings-data-management-content" class="settings-tab-content hidden" role="tabpanel" aria-labelledby="tab-data-management">
+      <div class="p-4 border rounded-lg mb-6">
+        <h3 class="text-lg font-semibold mb-3 sr-only">Data Management</h3>
+        <div class="space-y-3">
+          <button onclick="exportAllData()" class="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 py-2 px-4 rounded transition">
+            Export All Data
+          </button>
+          <button onclick="importData()" class="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 py-2 px-4 rounded transition">
+            Import Data
+          </button>
+          <button onclick="resetData()" class="w-full bg-red-100 text-red-700 hover:bg-red-200 py-2 px-4 rounded transition">
+            Reset All Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Constants ---
+    const RICE_CATEGORIES = ['25 KG', '10 KG', '5 KG', 'Per Kilo'];
+    const LOCAL_FORAGE_KEYS = {
+        PRODUCTS: 'rice_shop_products',
+        REPORTS_PREFIX: 'report_',
+        REPORT_INDEX: 'report_index',
+        PASSWORD: 'app_password_hash' 
+    };
+    const HASH_SALT = 'rice-inventory-management-salt'; 
+    
+    // Day.js setup
+    dayjs.extend(dayjs_plugin_isBetween);
+
+    // SweetAlert2 Toast configuration
+    const Toast = Swal.mixin({ 
+        toast: true, 
+        position: 'top-end', 
+        showConfirmButton: false, 
+        timer: 3000, 
+        timerProgressBar: true 
+    });
+
+    // Global variables for application state
+    let shopProducts = [];
+    let todayDateString = dayjs().format('YYYY-MM-DD');
+    let categoryChartInstance = null;
+    let salesTrendChartInstance = null;
+    let currentDailyReportCategory = null; 
+    let calculationTimeout; // For debouncing calculations
+
+    // --- Utility Functions ---
+
+    /**
+     * Initializes the application by loading products, setting up views.
+     */
+    async function initializeApp() {
+        document.getElementById('current-date-display').textContent = dayjs().format('MMM D, YYYY');
+        
+        await loadProducts(); 
+        renderProductList(); 
+
+        // Set initial dates for analytics view
+        document.getElementById('analytics-single-date').value = todayDateString;
+        document.getElementById('analytics-from-date').value = dayjs().subtract(7, 'day').format('YYYY-MM-DD');
+        document.getElementById('analytics-to-date').value = todayDateString;
+        toggleAnalyticsDateInputs(); 
+
+        showView('dashboard-view'); // Show dashboard on start
+    }
+
+    /**
+     * Validates a number input field.
+     */
+    function validateNumberInput(inputElement, allowZero = false) {
+        const value = parseFloat(inputElement.value);
+        if (isNaN(value) || value < 0 || (!allowZero && value === 0)) {
+            inputElement.classList.add('invalid');
+            return false;
+        } else {
+            inputElement.classList.remove('invalid');
+            return true;
+        }
+    }
+
+    /**
+     * Formats a number to a currency string.
+     */
+    function formatCurrency(amount) {
+        return parseFloat(amount).toFixed(2);
+    }
+    
+    /**
+     * Hashes a password using CryptoJS SHA256.
+     */
+    function hashPassword(password) {
+        return CryptoJS.SHA256(password + HASH_SALT).toString();
+    }
+
+
+    // --- Data Management Functions (LocalForage) ---
+
+    /**
+     * Loads product data from localforage or initializes with defaults.
+     */
+    async function loadProducts() {
+        let savedProducts = await localforage.getItem(LOCAL_FORAGE_KEYS.PRODUCTS);
+        if (!savedProducts || savedProducts.length === 0) {
+            // Default products
+            savedProducts = [ 
+                {id: 'prod_1', name: 'KYLO', price: 1300, cost: 1150, category: '25 KG', minStock: 5}, 
+                {id: 'prod_2', name: 'HASMIN AROMA', price: 1350, cost: 1200, category: '25 KG', minStock: 5}, 
+                {id: 'prod_3', name: 'ALAS', price: 1250, cost: 1100, category: '25 KG', minStock: 5}, 
+                {id: 'prod_4', name: 'YOUNG MASTER', price: 1280, cost: 1130, category: '25 KG', minStock: 5}, 
+                {id: 'prod_5', name: 'BLUE HARVEST', price: 1320, cost: 1170, category: '25 KG', minStock: 5}, 
+                {id: 'prod_6', name: 'PRINCESS BEA', price: 1270, cost: 1120, category: '25 KG', minStock: 5}, 
+                {id: 'prod_7', name: 'ALAS', price: 550, cost: 480, category: '10 KG', minStock: 10}, 
+                {id: 'prod_8', name: 'HASMIN AROMA', price: 580, cost: 510, category: '10 KG', minStock: 10}, 
+                {id: 'prod_9', name: 'BLUE HARVEST', price: 570, cost: 500, category: '10 KG', minStock: 10}, 
+                {id: 'prod_10', name: 'YOUNG MASTER', price: 560, cost: 490, category: '10 KG', minStock: 10}, 
+                {id: 'prod_11', name: 'PRINCESS BEA', price: 540, cost: 470, category: '10 KG', minStock: 10}, 
+                {id: 'prod_12', name: 'YOUNG MASTER', price: 280, cost: 240, category: '5 KG', minStock: 15}, 
+                {id: 'prod_13', name: 'HASMIN AROMA', price: 290, cost: 250, category: '5 KG', minStock: 15}, 
+                {id: 'prod_14', name: 'ALAS', price: 270, cost: 230, category: '5 KG', minStock: 15}, 
+                {id: 'prod_15', name: 'BLUE HARVEST', price: 285, cost: 245, category: '5 KG', minStock: 15}, 
+                {id: 'prod_16', name: 'PRINCESS BEA', price: 260, cost: 220, category: '5 KG', minStock: 15}, 
+                {id: 'prod_17', name: 'KYLO', price: 55, cost: 48, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_18', name: 'HASMIN AROMA', price: 60, cost: 52, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_19', name: 'ALAS', price: 50, cost: 45, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_20', name: 'YOUNG MASTER', price: 53, cost: 46, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_21', name: 'BLUE HARVEST', price: 57, cost: 50, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_22', name: 'PRINCESS BEA', price: 49, cost: 43, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_23', name: 'JAZZY', price: 52, cost: 45, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_24', name: 'BIGANTE', price: 48, cost: 41, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_25', name: 'FARNALIZA', price: 51, cost: 44, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_26', name: 'PILIT', price: 47, cost: 40, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_27', name: 'BH YELLOW', price: 54, cost: 47, category: 'Per Kilo', minStock: 20}, 
+                {id: 'prod_28', name: 'SWEET RICE', price: 65, cost: 58, category: 'Per Kilo', minStock: 20} 
+            ];
+            await localforage.setItem(LOCAL_FORAGE_KEYS.PRODUCTS, savedProducts);
+        } else {
+            // Ensure minStock property exists for old data
+            savedProducts = savedProducts.map(p => ({ ...p, minStock: p.minStock !== undefined ? p.minStock : 0 }));
+            await localforage.setItem(LOCAL_FORAGE_KEYS.PRODUCTS, savedProducts);
+        }
+        shopProducts = savedProducts;
+    }
+
+    /**
+     * Initiates a new daily report.
+     */
+    async function startDay() {
+        let report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (report) {
+            Toast.fire({ icon: 'info', title: 'Day Already Started' });
+            return report;
+        }
+
+        const reportIndex = (await localforage.getItem(LOCAL_FORAGE_KEYS.REPORT_INDEX) || []).sort().reverse();
+        const lastReportDate = reportIndex.length > 0 ? reportIndex[0] : null;
+        const lastReport = lastReportDate ? await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${lastReportDate}`) : null;
+        
+        const newReportData = {};
+        shopProducts.forEach(p => {
+            const lastEndStock = lastReport?.data[p.id]?.end || 0;
+            newReportData[p.id] = { begin: lastEndStock, newStock: 0, end: lastEndStock, price: p.price, cost: p.cost };
+        });
+
+        report = { date: todayDateString, finalized: false, data: newReportData };
+        await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, report);
+        Toast.fire({ icon: 'success', title: 'New Day Started!' });
+        return report;
+    }
+
+    /**
+     * Saves updated inventory data for a specific product.
+     */
+    async function saveInventoryData(productId, data) {
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (report && !report.finalized) {
+            if (!report.data[productId]) {
+                 const productInfo = shopProducts.find(p => p.id === productId);
+                 if (productInfo) {
+                    report.data[productId] = { begin: 0, newStock: 0, end: 0, price: productInfo.price, cost: productInfo.cost };
+                 } else {
+                    return;
+                 }
+            }
+            Object.assign(report.data[productId], data);
+            await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, report);
+        }
+    }
+
+    /**
+     * Finalizes the current day's report.
+     */
+    async function finalizeReport() {
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (report && !report.finalized) {
+            report.finalized = true;
+            await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, report);
+            let reportIndex = await localforage.getItem(LOCAL_FORAGE_KEYS.REPORT_INDEX) || [];
+            if (!reportIndex.includes(todayDateString)) {
+                reportIndex.push(todayDateString);
+                await localforage.setItem(LOCAL_FORAGE_KEYS.REPORT_INDEX, reportIndex);
+            }
+            Toast.fire({ icon: 'success', title: 'Report Submitted!' });
+            showInventory(null);
+        }
+    }
+
+    // --- UI Rendering Functions ---
+
+    /**
+     * Updates the active state of the main navigation tabs.
+     */
+    function updateNavTabs(activeTabId) {
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            if (tab.getAttribute('aria-controls') === activeTabId) {
+                tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+            } else {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            }
+        });
+    }
+
+    /**
+     * Controls which main application view is currently visible.
+     */
+    function showView(viewId) {
+        document.querySelectorAll('.main-view').forEach(view => view.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        updateNavTabs(viewId);
+
+        if (viewId === 'repack-view') {
+            renderRepackView();
+        }
+        if (viewId === 'dashboard-view') {
+            renderDashboard();
+        }
+    }
+    
+    /**
+     * Displays the inventory table.
+     */
+    async function showInventory(category = null, dateString = todayDateString) {
+        currentDailyReportCategory = category;
+        showView('daily-report-view');
+        
+        let report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${dateString}`);
+        if (!report && dateString === todayDateString) {
+            report = await startDay();
+        }
+        
+        renderInventoryTable(category, dateString);
+    }
+
+    /**
+     * Helper function to get total sales and profit for a specific date.
+     */
+    async function getDailySummary(dateString) {
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${dateString}`);
+        let totalSales = 0;
+        let totalProfit = 0;
+
+        if (report && report.data) {
+            for (const productId in report.data) {
+                const product = shopProducts.find(p => p.id === productId);
+                if (!product) continue;
+
+                const item = report.data[productId];
+                const sold = Math.max(0, (item.begin + item.newStock) - item.end);
+                const sales = sold * item.price;
+                const profit = sales - (sold * item.cost);
+
+                totalSales += sales;
+                totalProfit += profit;
+            }
+        }
+        return { totalSales, totalProfit };
+    }
+
+
+    /**
+     * Renders the daily inventory report table.
+     */
+    async function renderInventoryTable(category, dateString = todayDateString) {
+        const inventoryTbody = document.getElementById('inventory-tbody');
+        inventoryTbody.innerHTML = '<tr><td colspan="7" class="text-center p-4"><div class="loader" role="status"></div></td></tr>';
+
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${dateString}`);
+        if (!report) {
+            inventoryTbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-600">Report for ${dayjs(dateString).format('MMMM D, YYYY')} not found!</td></tr>`;
+            return;
+        }
+        
+        const isEditable = (dateString === todayDateString && !report.finalized);
+        document.getElementById('report-title').textContent = `Daily Report - ${dayjs(dateString).format('MMMM D, YYYY')}`;
+        
+        const productsToRender = category 
+            ? shopProducts.filter(p => p.category === category) 
+            : shopProducts.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+        
+        if (productsToRender.length === 0) {
+            inventoryTbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">No products found. Add products in settings.</td></tr>`;
+            return;
+        }
+        
+        let tableHtml = '';
+        let footerHtml = '';
+
+        const groupedProducts = {};
+        const categoriesToLoop = category ? [category] : RICE_CATEGORIES;
+        categoriesToLoop.forEach(cat => groupedProducts[cat] = []);
+        productsToRender.forEach(p => {
+             if (groupedProducts[p.category]) {
+                groupedProducts[p.category].push(p);
+             }
+        });
+
+        let overallTotalSold = 0;
+        let overallTotalSales = 0;
+        let hasProductsInAnyCategory = false; 
+        
+        categoriesToLoop.forEach(cat => {
+            const productsInCategory = groupedProducts[cat].sort((a, b) => a.name.localeCompare(b.name));
+            if (productsInCategory.length > 0) {
+                hasProductsInAnyCategory = true;
+                
+                if (!category) {
+                    tableHtml += `<tr class="bg-slate-100"><td colspan="7" class="p-3 font-bold text-slate-800 text-left">${cat}</td></tr>`;
+                }
+
+                let categoryTotalSold = 0;
+                let categoryTotalSales = 0;
+
+                productsInCategory.forEach(product => {
+                    const data = report.data[product.id] || { begin: 0, newStock: 0, end: 0, price: product.price, cost: product.cost };
+                    const sold = Math.max(0, (data.begin + data.newStock) - data.end);
+                    const totalSales = sold * data.price;
+
+                    categoryTotalSold += sold;
+                    categoryTotalSales += totalSales;
+                    
+                    const rowClasses = [];
+                    if (data.end < 0) {
+                        rowClasses.push('negative-stock-warning');
+                    } else if (data.end <= (product.minStock || 0)) {
+                        rowClasses.push('low-stock');
+                    }
+                    if (sold > 0) {
+                        rowClasses.push('inputted-row');
+                    }
+
+                    tableHtml += `<tr data-id="${product.id}" class="${rowClasses.join(' ')}">
+                        <td class="text-left font-medium">${product.name}</td>
+                        <td><input type="number" value="${data.begin}" class="begin-val" disabled /></td>
+                        <td><input type="number" value="${data.newStock}" class="new-stock-input" ${!isEditable ? 'disabled' : ''} oninput="validateNumberInput(this, true); debouncedCalculate(this);"/></td>
+                        <td><input type="number" value="${data.end}" class="end-input" ${!isEditable ? 'disabled' : ''} oninput="validateNumberInput(this, true); debouncedCalculate(this);"/></td>
+                        <td><input type="number" value="${sold}" class="sold-val" disabled /></td>
+                        <td><input type="number" step="0.01" value="${formatCurrency(data.price)}" class="price-val" disabled /></td>
+                        <td class="total-sales-val font-bold" aria-live="polite">${formatCurrency(totalSales)}</td>
+                    </tr>`;
+                });
+
+                const cleanCat = cat.replace(' ', '-');
+                tableHtml += `
+                <tr class="bg-green-50 text-green-800 font-bold">
+                    <td colspan="4" class="text-right p-3">Grand Total for ${cat}</td>
+                    <td id="category-total-sold-${cleanCat}" class="p-3">${categoryTotalSold}</td>
+                    <td></td>
+                    <td id="category-total-sales-${cleanCat}" class="p-3">₱${formatCurrency(categoryTotalSales)}</td>
+                </tr>`;
+                
+                overallTotalSold += categoryTotalSold;
+                overallTotalSales += categoryTotalSales;
+            }
+        });
+
+        if (!hasProductsInAnyCategory) {
+            inventoryTbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">No products found.</td></tr>`;
+            return;
+        }
+
+        if (!category && hasProductsInAnyCategory) {
+             footerHtml += `
+             <tr class="bg-green-600 text-white font-bold text-lg sticky bottom-0 z-10">
+                <td colspan="4" class="text-right p-4">OVERALL GRAND TOTAL</td>
+                <td id="overall-total-sold" class="p-4">${overallTotalSold}</td>
+                <td></td>
+                <td id="overall-total-sales" class="p-4">₱${formatCurrency(overallTotalSales)}</td>
+             </tr>`;
+        }
+
+        if (isEditable) {
+            footerHtml += `<tr><td colspan="7" class="p-4 text-center"><button onclick="showReviewModal()" class="btn-success">Submit End of Day Report</button></td></tr>`;
+        } else if (report.finalized) {
+            footerHtml += `<tr><td colspan="7" class="p-4 bg-green-50 text-center"><p class="font-bold text-green-700">✅ Report Submitted</p></td></tr>`;
+        }
+
+        inventoryTbody.innerHTML = tableHtml + footerHtml;
+    }
+
+    /**
+     * Recalculates and updates the grand total rows in the inventory table.
+     */
+    function updateInventoryTableTotals() {
+        const categories = {};
+        RICE_CATEGORIES.forEach(cat => categories[cat] = { sold: 0, sales: 0 });
+
+        let overallSold = 0;
+        let overallSales = 0;
+
+        const rows = document.querySelectorAll('#inventory-tbody tr[data-id]');
+        rows.forEach(row => {
+            const productId = row.dataset.id;
+            const product = shopProducts.find(p => p.id === productId);
+            if (!product) return;
+
+            const sold = parseInt(row.querySelector('.sold-val').value) || 0;
+            const sales = parseFloat(row.querySelector('.total-sales-val').textContent.replace(/[₱,]/g, '')) || 0;
+
+            if (categories[product.category]) {
+                categories[product.category].sold += sold;
+                categories[product.category].sales += sales;
+            }
+
+            overallSold += sold;
+            overallSales += sales;
+        });
+
+        for (const cat in categories) {
+            const cleanCat = cat.replace(' ', '-');
+            const soldEl = document.getElementById(`category-total-sold-${cleanCat}`);
+            const salesEl = document.getElementById(`category-total-sales-${cleanCat}`);
+            if (soldEl) soldEl.textContent = categories[cat].sold;
+            if (salesEl) salesEl.textContent = `₱${formatCurrency(categories[cat].sales)}`;
+        }
+
+        const overallSoldEl = document.getElementById('overall-total-sold');
+        const overallSalesEl = document.getElementById('overall-total-sales');
+        if (overallSoldEl) overallSoldEl.textContent = overallSold;
+        if (overallSalesEl) overallSalesEl.textContent = `₱${formatCurrency(overallSales)}`;
+    }
+
+
+    /**
+     * Calculates SOLD units and total sales for a row based on input changes.
+     */
+    async function calculate(inputElement) {
+        if (inputElement.classList.contains('invalid')) return;
+
+        const row = inputElement.closest('tr');
+        if (!row || !row.dataset.id) return;
+
+        const productId = row.dataset.id;
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (!report || report.finalized) return;
+
+        const data = report.data[productId];
+        if (!data) return;
+
+        const begin = parseFloat(row.querySelector('.begin-val').value) || 0;
+        const newStock = parseFloat(row.querySelector('.new-stock-input').value) || 0;
+        const end = parseFloat(row.querySelector('.end-input').value) || 0;
+        const soldInput = row.querySelector('.sold-val');
+
+        const sold = (begin + newStock) - end;
+        soldInput.value = sold;
+
+        const totalSales = sold * data.price;
+        row.querySelector('.total-sales-val').textContent = formatCurrency(totalSales);
+        
+        const product = shopProducts.find(p => p.id === productId);
+        
+        row.classList.remove('negative-stock-warning', 'low-stock', 'inputted-row');
+
+        if (end < 0) {
+            row.classList.add('negative-stock-warning');
+        } else if (product?.minStock > 0 && end <= product.minStock) {
+            row.classList.add('low-stock');
+        }
+
+        if (sold > 0) {
+            row.classList.add('inputted-row');
+        }
+
+        await saveInventoryData(productId, { newStock: newStock, end: end });
+        
+        updateInventoryTableTotals();
+    }
+    
+    /** Debounces the calculation function to improve performance. */
+    function debouncedCalculate(inputElement) {
+        clearTimeout(calculationTimeout);
+        calculationTimeout = setTimeout(() => calculate(inputElement), 300);
+    }
+    
+    /**
+     * Displays a modal for reviewing and modifying the report before submission.
+     */
+    async function showReviewModal() {
+        let report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (!report || report.finalized) {
+            return Swal.fire('Report Locked', 'Today\'s report is already submitted or does not exist.', 'info');
+        }
+
+        let totalSalesReview = 0;
+        let totalProfitReview = 0;
+        let modalTableRows = '';
+
+        const sortedProducts = shopProducts.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+
+        sortedProducts.forEach(product => {
+            const data = report.data[product.id] || { begin: 0, newStock: 0, end: 0, price: product.price, cost: product.cost };
+            const sold = Math.max(0, (data.begin + data.newStock) - data.end);
+            const totalSales = sold * data.price;
+            const totalCost = sold * data.cost;
+            const profit = totalSales - totalCost;
+
+            totalSalesReview += totalSales;
+            totalProfitReview += profit;
+
+            modalTableRows += `<tr class="swal-product-row" data-product-id="${product.id}">
+                <td class="p-2 border text-left font-medium">${product.name}</td>
+                <td class="p-2 border swal-begin">${data.begin || 0}</td>
+                <td class="p-2 border"><input type="number" value="${data.newStock || 0}" class="border p-1 w-16 rounded text-center swal-new" oninput="validateNumberInput(this, true);"></td>
+                <td class="p-2 border"><input type="number" value="${data.end || 0}" class="border p-1 w-16 rounded text-center swal-end" oninput="validateNumberInput(this, true);"></td>
+                <td class="p-2 border swal-sold">${sold}</td>
+                <td class="p-2 border">₱${formatCurrency(data.price)}</td>
+                <td class="p-2 border font-bold swal-sales">₱${formatCurrency(totalSales)}</td>
+                <td class="p-2 border text-green-600 swal-profit">₱${formatCurrency(profit)}</td>
+            </tr>`;
+        });
+
+        const modalHtml = `
+            <div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 font-semibold">
+                            <th class="p-2 border text-left">PRODUCT</th>
+                            <th class="p-2 border">BEGIN</th>
+                            <th class="p-2 border">NEW</th>
+                            <th class="p-2 border">END</th>
+                            <th class="p-2 border">SOLD</th>
+                            <th class="p-2 border">PRICE</th>
+                            <th class="p-2 border">SALES</th>
+                            <th class="p-2 border">PROFIT</th>
+                        </tr>
+                    </thead>
+                    <tbody>${modalTableRows}</tbody>
+                    <tfoot>
+                        <tr class="grand-total-row">
+                            <td colspan="6" class="p-3 font-bold text-right">💰 GRAND TOTAL</td>
+                            <td class="p-3 font-bold" id="modal-total-sales">₱${formatCurrency(totalSalesReview)}</td>
+                            <td class="p-3 font-bold text-green-600" id="modal-total-profit">₱${formatCurrency(totalProfitReview)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+
+        const { isConfirmed } = await Swal.fire({
+            title: `Review Report for ${dayjs().format('MMMM D, YYYY')}`,
+            html: modalHtml,
+            width: '90%', maxWidth: '950px', 
+            showCancelButton: true,
+            confirmButtonText: 'Save & Continue',
+            didOpen: () => {
+                document.querySelectorAll('.swal-new, .swal-end').forEach(input => {
+                    input.addEventListener('input', () => {
+                        if (validateNumberInput(input, true)) {
+                            updateModalTotals();
+                        }
+                    });
+                });
+            },
+            preConfirm: async () => {
+                const invalidInputs = Array.from(document.querySelectorAll('.swal-new, .swal-end')).filter(input => !validateNumberInput(input, true));
+                if (invalidInputs.length > 0) {
+                    Swal.showValidationMessage('Please correct invalid inputs.');
+                    return false;
+                }
+                
+                const updatedReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+                document.querySelectorAll('.swal-product-row').forEach(row => {
+                    const pid = row.dataset.productId;
+                    if (updatedReport.data[pid]) {
+                        const newStock = parseInt(row.querySelector('.swal-new').value) || 0;
+                        const end = parseInt(row.querySelector('.swal-end').value) || 0;
+                        
+                        updatedReport.data[pid].newStock = newStock;
+                        updatedReport.data[pid].end = end;
+                    }
+                });
+                await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, updatedReport);
+            }
+        });
+
+        if (isConfirmed) {
+            Toast.fire({ icon: 'success', title: 'Report data saved!' });
+            renderInventoryTable(currentDailyReportCategory);
+            
+            const { isConfirmed: isFinalized } = await Swal.fire({ 
+                title: 'Ready to Submit?', 
+                text: "This will lock today's report and prevent further edits.", 
+                icon: 'warning', 
+                showCancelButton: true, 
+                confirmButtonText: 'Yes, Finalize Report!', 
+                confirmButtonColor: '#28a745' 
+            });
+            if (isFinalized) {
+                await finalizeReport();
+            }
+        }
+
+        function updateModalTotals() {
+            let currentTotalSales = 0;
+            let currentTotalProfit = 0;
+            document.querySelectorAll('.swal-product-row').forEach(row => {
+                const productId = row.dataset.productId;
+                const product = shopProducts.find(p => p.id === productId);
+                if (!product) return;
+
+                const begin = parseInt(row.querySelector('.swal-begin').textContent) || 0;
+                const newStock = parseInt(row.querySelector('.swal-new').value) || 0;
+                const end = parseInt(row.querySelector('.swal-end').value) || 0;
+                const price = parseFloat(row.children[5].textContent.replace('₱', '')) || 0;
+                const cost = product.cost;
+
+                const sold = (begin + newStock) - end;
+                const sales = sold * price;
+                const profit = sales - (sold * cost);
+
+                row.querySelector('.swal-sold').textContent = sold;
+                row.querySelector('.swal-sales').textContent = `₱${formatCurrency(sales)}`;
+                row.querySelector('.swal-profit').textContent = `₱${formatCurrency(profit)}`;
+
+                currentTotalSales += sales;
+                currentTotalProfit += profit;
+            });
+            document.getElementById('modal-total-sales').textContent = `₱${formatCurrency(currentTotalSales)}`;
+            document.getElementById('modal-total-profit').textContent = `₱${formatCurrency(currentTotalProfit)}`;
+        }
+    }
+
+    // --- History View Functions ---
+
+    /**
+     * Displays the report history view.
+     */
+    async function showHistory() {
+        showView('history-view');
+        const historyList = document.getElementById('history-list');
+        historyList.innerHTML = '<div class="p-4 text-center"><div class="loader" role="status"></div></div>';
+        const reportIndex = (await localforage.getItem(LOCAL_FORAGE_KEYS.REPORT_INDEX) || []).sort().reverse();
+        if (reportIndex.length === 0) {
+            historyList.innerHTML = '<p class="p-4 text-center text-slate-500">No saved reports found.</p>';
+        } else {
+            renderHistoryList(reportIndex);
+        }
+    }
+    
+    /**
+     * Renders the list of historical reports.
+     */
+    function renderHistoryList(reportIndex) {
+        document.getElementById('history-list').innerHTML = reportIndex.map(dateString => `
+            <div class="p-4 hover:bg-slate-50 transition-colors history-item" data-date="${dateString}">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div>
+                        <div class="font-medium">${dayjs(dateString).format('dddd, MMMM D, YYYY')}</div>
+                        <div class="text-sm text-slate-500" aria-hidden="true">${dateString}</div>
+                    </div>
+                    <div class="flex gap-2 mt-2 sm:mt-0">
+                        <button onclick="showInventory(null, '${dateString}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View Report</button>
+                        <button onclick="deleteReport('${dateString}')" class="text-red-600 hover:text-red-800 text-sm font-medium">Delete Report</button>
+                    </div>
+                </div>
+            </div>`).join('');
+    }
+    
+    /**
+     * Filters and sorts the displayed report history.
+     */
+    function filterHistory() {
+        const searchTerm = document.getElementById('history-search').value.toLowerCase();
+        const sortOrder = document.getElementById('history-sort').value;
+        let items = Array.from(document.querySelectorAll('.history-item'));
+        
+        items.forEach(item => {
+            const dateText = item.dataset.date.toLowerCase();
+            const displayText = item.querySelector('.font-medium').textContent.toLowerCase();
+            item.style.display = (displayText.includes(searchTerm) || dateText.includes(searchTerm)) ? 'block' : 'none';
+        });
+
+        const visibleItems = items.filter(item => item.style.display !== 'none');
+        visibleItems.sort((a, b) => {
+            const dateA = a.dataset.date;
+            const dateB = b.dataset.date;
+            return sortOrder === 'oldest' ? dateA.localeCompare(dateB) : dateB.localeCompare(a.dataset.date);
+        });
+        const container = document.getElementById('history-list');
+        visibleItems.forEach(item => container.appendChild(item));
+    }
+    
+    /**
+     * Deletes a specific report.
+     */
+    async function deleteReport(dateString) {
+        const { isConfirmed } = await Swal.fire({ 
+            title: 'Delete Report?', 
+            text: `Are you sure you want to delete the report for ${dayjs(dateString).format('MMMM D, YYYY')}? This cannot be undone.`, 
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonText: 'Yes, delete it!' 
+        });
+        if (isConfirmed) {
+            await localforage.removeItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${dateString}`);
+            let reportIndex = await localforage.getItem(LOCAL_FORAGE_KEYS.REPORT_INDEX) || [];
+            await localforage.setItem(LOCAL_FORAGE_KEYS.REPORT_INDEX, reportIndex.filter(date => date !== dateString));
+            Toast.fire({ icon: 'success', title: 'Report deleted!' });
+            showHistory();
+        }
+    }
+
+    // --- Repack View Functions ---
+
+    /**
+     * Renders the Repack Per Kilo view.
+     */
+    async function renderRepackView() {
+        const container = document.getElementById('repack-container');
+        let report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (!report || report.finalized) {
+            container.innerHTML = `<p class="text-center text-red-600 font-medium">You can only repack rice on the current, un-submitted report.</p>`;
+            return;
+        }
+
+        const fromProducts = shopProducts.filter(p => p.category === '25 KG').sort((a,b) => a.name.localeCompare(b.name));
+        const toProducts = shopProducts.filter(p => p.category === 'Per Kilo').sort((a,b) => a.name.localeCompare(b.name));
+
+        if (fromProducts.length === 0 || toProducts.length === 0) {
+            container.innerHTML = `<p class="text-center text-red-600 font-medium">Ensure you have 25 KG and Per Kilo products in settings.</p>`;
+            return;
+        }
+
+        const fromOptions = fromProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        const toOptions = toProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+        container.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <!-- FROM -->
+                <div class="md:col-span-2 space-y-2">
+                    <label for="repack-from" class="block text-lg font-semibold text-slate-700">From (25 KG Sack)</label>
+                    <select id="repack-from" class="w-full border border-slate-300 rounded-md p-3 text-lg">${fromOptions}</select>
+                    <div class="text-center mt-2">
+                        Current <span class="font-bold text-blue-600">Available</span> Stock for Repack: 
+                        <span id="from-stock" class="font-bold text-xl text-blue-600" aria-live="polite">0</span> sacks
+                    </div>
+                </div>
+                <!-- ACTION -->
+                <div class="text-center">
+                     <div class="my-4">
+                        <label for="repack-qty" class="block text-sm font-medium text-slate-700 mb-1">Sacks to Open</label>
+                        <input id="repack-qty" type="number" value="1" min="1" class="w-full text-center text-xl font-bold border border-slate-300 rounded-md p-2" oninput="validateNumberInput(this)">
+                    </div>
+                    <button onclick="handleRepackTransfer()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        TRANSFER
+                    </button>
+                </div>
+                <!-- TO -->
+                <div class="md:col-span-2 space-y-2">
+                    <label for="repack-to" class="block text-lg font-semibold text-slate-700">To (Per Kilo)</label>
+                    <select id="repack-to" class="w-full border border-slate-300 rounded-md p-3 text-lg">${toOptions}</select>
+                     <div class="text-center mt-2">Current Stock: <span id="to-stock" class="font-bold text-xl text-amber-600" aria-live="polite">0</span> kg</div>
+                </div>
+            </div>`;
+        
+        const fromSelect = document.getElementById('repack-from');
+        const toSelect = document.getElementById('repack-to');
+        
+        const updateStockDisplay = async () => {
+            const currentReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+            document.getElementById('from-stock').textContent = currentReport.data[fromSelect.value]?.end || 0;
+            document.getElementById('to-stock').textContent = currentReport.data[toSelect.value]?.end || 0;
+        };
+
+        const autoSelectToProduct = () => {
+            const selectedFrom = shopProducts.find(p => p.id === fromSelect.value);
+            const correspondingTo = toProducts.find(p => p.name === selectedFrom.name);
+            if (correspondingTo) {
+                toSelect.value = correspondingTo.id;
+            }
+            updateStockDisplay();
+        };
+
+        fromSelect.addEventListener('change', autoSelectToProduct);
+        toSelect.addEventListener('change', updateStockDisplay);
+        
+        autoSelectToProduct();
+    }
+    
+    /**
+     * Handles the stock transfer logic for repacking.
+     */
+    async function handleRepackTransfer() {
+        const fromProductId = document.getElementById('repack-from').value;
+        const toProductId = document.getElementById('repack-to').value;
+        const qtyInput = document.getElementById('repack-qty');
+        const qtyToRepack = parseInt(qtyInput.value) || 0;
+
+        if (!validateNumberInput(qtyInput) || qtyToRepack <= 0) {
+            return Toast.fire({icon: 'error', title: 'Please enter a valid number of sacks.'});
+        }
+        if (fromProductId === toProductId) {
+             return Toast.fire({icon: 'error', title: 'Cannot repack to the same product.'});
+        }
+
+        const report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        const fromProductData = report.data[fromProductId];
+
+        if (fromProductData.end < qtyToRepack) {
+            return Swal.fire('Insufficient Stock', `Not enough stock to repack ${qtyToRepack} sacks. Only ${fromProductData.end} available.`, 'error');
+        }
+
+        const toProductData = report.data[toProductId];
+        
+        fromProductData.end -= qtyToRepack;
+        toProductData.end += (qtyToRepack * 25);
+
+        await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, report);
+        
+        Toast.fire({ icon: 'success', title: 'Repack successful!' });
+        
+        document.getElementById('from-stock').textContent = fromProductData.end;
+        document.getElementById('to-stock').textContent = toProductData.end;
+        qtyInput.value = 1;
+    }
+
+    // --- Analytics View Functions ---
+
+    /**
+     * Shows a specific tab content within the analytics panel.
+     */
+    function showAnalyticsSubTab(contentId) {
+        document.querySelectorAll('#settings-analytics-content .analytics-tab-content').forEach(content => { 
+            content.classList.add('hidden');
+            content.setAttribute('aria-hidden', 'true');
+        });
+
+        document.querySelectorAll('#settings-analytics-content .analytics-tab').forEach(tab => { 
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        });
+
+        const selectedContent = document.getElementById(contentId);
+        if (selectedContent) {
+            selectedContent.classList.remove('hidden');
+            selectedContent.setAttribute('aria-hidden', 'false');
+            const correspondingTab = document.querySelector(`#settings-analytics-content [aria-controls="${contentId}"]`);
+            if (correspondingTab) {
+                correspondingTab.classList.add('active');
+                correspondingTab.setAttribute('aria-selected', 'true');
+            }
+        }
+        if (contentId.startsWith('analytics-')) {
+            loadAnalytics(); 
+        }
+    }
+
+
+    /**
+     * Toggles the visibility of date input fields in the analytics view.
+     */
+    function toggleAnalyticsDateInputs() {
+        const mode = document.getElementById('analytics-mode-select').value;
+        document.getElementById('daily-date-input').classList.toggle('hidden', mode !== 'daily');
+        document.getElementById('range-date-inputs').classList.toggle('hidden', mode !== 'range');
+    }
+
+    /**
+     * Loads and displays analytics data based on selected date range/mode.
+     */
+    async function loadAnalytics() {
+        const mode = document.getElementById('analytics-mode-select').value;
+        let startDate, endDate;
+
+        if (mode === 'daily') {
+            startDate = document.getElementById('analytics-single-date').value;
+            endDate = startDate;
+        } else {
+            startDate = document.getElementById('analytics-from-date').value;
+            endDate = document.getElementById('analytics-to-date').value;
+        }
+
+        if (!startDate || !endDate) {
+            if (!document.getElementById('settings-analytics-content').classList.contains('hidden')) {
+                 Toast.fire({ icon: 'error', title: 'Please select valid dates.' });
+            }
+            return;
+        }
+        if (dayjs(startDate).isAfter(dayjs(endDate))) {
+            return Toast.fire({ icon: 'error', title: 'Start date cannot be after end date.' });
+        }
+
+        const reportIndex = (await localforage.getItem(LOCAL_FORAGE_KEYS.REPORT_INDEX) || []);
+        let relevantDates = reportIndex.filter(date => dayjs(date).isBetween(startDate, endDate, 'day', '[]')).sort();
+
+        if (mode === 'daily' && !relevantDates.includes(startDate)) {
+             relevantDates = [];
+        } else if (mode === 'daily') {
+             relevantDates = [startDate];
+        }
+
+        let totalSales = 0;
+        let totalProfit = 0;
+        const salesByCategory = {};
+        const salesTrend = {};
+        const productPerformance = {};
+
+        RICE_CATEGORIES.forEach(cat => salesByCategory[cat] = 0);
+        shopProducts.forEach(p => productPerformance[p.id] = { sold: 0, sales: 0, profit: 0, name: p.name, category: p.category });
+
+        const reports = await Promise.all(relevantDates.map(date => localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${date}`)));
+
+        reports.forEach(report => {
+            if (!report) return;
+
+            let daySales = 0;
+            for (const productId in report.data) {
+                const product = shopProducts.find(p => p.id === productId);
+                if (!product) continue;
+
+                const item = report.data[productId];
+                const sold = Math.max(0, (item.begin + item.newStock) - item.end);
+                const sales = sold * item.price;
+                const profit = sales - (sold * item.cost);
+
+                totalSales += sales;
+                totalProfit += profit;
+                daySales += sales;
+
+                salesByCategory[product.category] += sales;
+
+                if (productPerformance[productId]) {
+                    productPerformance[productId].sold += sold;
+                    productPerformance[productId].sales += sales;
+                    productPerformance[productId].profit += profit;
+                }
+            }
+            salesTrend[report.date] = daySales;
+        });
+
+        const numDays = relevantDates.length;
+        const avgDailySales = numDays > 0 ? totalSales / numDays : 0;
+        const avgProfitMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
+
+        document.getElementById('analytics-total-sales').textContent = `₱${formatCurrency(totalSales)}`;
+        document.getElementById('analytics-total-profit').textContent = `₱${formatCurrency(totalProfit)}`;
+        document.getElementById('analytics-avg-sales').textContent = `₱${formatCurrency(avgDailySales)}`;
+        document.getElementById('analytics-avg-margin').textContent = `${formatCurrency(avgProfitMargin)}%`;
+
+        const chartsContent = document.getElementById('analytics-charts-content');
+        if (chartsContent && !chartsContent.classList.contains('hidden')) {
+            // We now render the daily sales list instead of the charts
+            renderDailySalesList(salesTrend);
+        }
+        
+        renderTopPerformingProducts(productPerformance);
+    }
+
+    /**
+     * Renders the top performing products list.
+     */
+    function renderTopPerformingProducts(productPerformance) {
+        const container = document.getElementById('analytics-top-products');
+        const productsArray = Object.values(productPerformance);
+
+        if (productsArray.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-500 py-4">No sales data found for the selected period.</p>';
+            return;
+        }
+        
+        const top5 = productsArray
+            .filter(p => p.sales > 0)
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 5);
+
+        if (top5.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-500 py-4">No sales data found for the selected period.</p>';
+            return;
+        }
+
+        container.innerHTML = top5.map((p, i) => `
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center ${i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">${i + 1}</div>
+                    <div>
+                        <div class="font-medium">${p.name} <span class="text-sm text-slate-400">(${p.category})</span></div>
+                        <div class="text-sm text-slate-500">${p.sold} sold</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="font-semibold">₱${formatCurrency(p.sales)}</div>
+                    <div class="text-sm text-green-600">₱${formatCurrency(p.profit)} profit</div>
+                </div>
+            </div>`).join('');
+    }
+    
+    /**
+     * Renders a list of daily sales for the selected period.
+     */
+    function renderDailySalesList(salesData) {
+        const container = document.getElementById('daily-sales-list');
+        const dates = Object.keys(salesData);
+
+        if (dates.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-500 py-4">No sales data found for the selected period.</p>';
+            return;
+        }
+
+        // Sort dates from newest to oldest
+        dates.sort((a, b) => b.localeCompare(a));
+
+        container.innerHTML = dates.map(date => {
+            const sales = salesData[date];
+            const formattedDate = dayjs(date).format('MMM D, YYYY');
+            return `
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                    <span class="font-medium text-slate-800">${formattedDate}</span>
+                    <span class="font-bold text-lg text-green-600">₱${formatCurrency(sales)}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- Dashboard Functions ---
+    /**
+     * Renders the main dashboard with key metrics for the current day.
+     */
+    async function renderDashboard() {
+        document.getElementById('dashboard-date').textContent = dayjs().format('MMMM D, YYYY');
+        const container = document.getElementById('dashboard-content');
+        container.innerHTML = '<div class="col-span-full text-center p-8"><div class="loader" role="status"></div></div>';
+        
+        let report = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (!report) {
+            report = await startDay();
+        }
+
+        const { totalSales, totalProfit } = await getDailySummary(todayDateString);
+
+        const lowStockItems = [];
+        shopProducts.forEach(product => {
+            const endStock = report.data[product.id]?.end;
+            if (product.minStock > 0 && endStock !== undefined && endStock <= product.minStock) {
+                lowStockItems.push({ name: product.name, category: product.category, stock: endStock, min: product.minStock });
+            }
+        });
+
+        const dashboardHTML = `
+            <!-- Total Sales -->
+            <div class="card p-6 flex items-center gap-6 bg-blue-50 border-l-4 border-blue-500">
+                <div class="bg-blue-100 p-4 rounded-full">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 6V5m0 14v-1m-7-7H4m16 0h-1m-1.61-5.61l.707-.707M6.343 17.657l-.707.707m12.02-12.02l.707.707M6.343 6.343l-.707-.707"></path></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">Today's Total Sales</p>
+                    <p class="text-3xl font-bold text-slate-800">₱${formatCurrency(totalSales)}</p>
+                </div>
+            </div>
+
+            <!-- Total Profit -->
+            <div class="card p-6 flex items-center gap-6 bg-green-50 border-l-4 border-green-500">
+                <div class="bg-green-100 p-4 rounded-full">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">Today's Estimated Profit</p>
+                    <p class="text-3xl font-bold text-green-700">₱${formatCurrency(totalProfit)}</p>
+                </div>
+            </div>
+
+            <!-- Low Stock Items -->
+            <div class="card p-6 col-span-1 md:col-span-2 bg-red-50 border-l-4 border-red-500">
+                <h3 class="font-bold text-lg text-slate-800 mb-3">Items Needing Restock</h3>
+                <div id="low-stock-list" class="space-y-2 max-h-48 overflow-y-auto">
+                    ${lowStockItems.length > 0 ? lowStockItems.map(item => `
+                        <div class="flex justify-between items-center text-sm p-2 bg-white rounded">
+                            <span class="font-semibold">${item.name} <span class="font-normal text-slate-500">(${item.category})</span></span>
+                            <span class="font-semibold text-red-600">${item.stock} left (Min: ${item.min})</span>
+                        </div>
+                    `).join('') : '<p class="text-slate-500 text-center py-4">All stock levels are good!</p>'}
+                </div>
+            </div>
+        `;
+        container.innerHTML = dashboardHTML;
+    }
+
+
+    // --- Settings Panel Functions ---
+
+    /**
+     * Shows a specific tab content within the settings panel.
+     */
+    function showSettingsTab(contentId) {
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.classList.add('hidden');
+            content.setAttribute('aria-hidden', 'true');
+        });
+
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        });
+
+        const selectedContent = document.getElementById(contentId);
+        if (selectedContent) {
+            selectedContent.classList.remove('hidden');
+            selectedContent.setAttribute('aria-hidden', 'false');
+            const correspondingTab = document.querySelector(`[aria-controls="${contentId}"]`);
+            if (correspondingTab) {
+                correspondingTab.classList.add('active');
+                correspondingTab.setAttribute('aria-selected', 'true');
+            }
+        }
+        
+        if (contentId === 'settings-analytics-content') {
+            showAnalyticsSubTab('analytics-overview-content');
+        }
+    }
+
+    /**
+     * Opens the settings panel.
+     */
+    async function openSettingsPanel() { 
+        document.getElementById('settings-panel').classList.add('open'); 
+        document.getElementById('settings-panel').focus();
+        showSettingsTab('settings-product-management-content');
+    }
+    
+    /**
+     * Closes the settings panel.
+     */
+    function closeSettingsPanel() { 
+        document.getElementById('settings-panel').classList.remove('open'); 
+        const settingsButton = document.querySelector('[onclick="openSettingsWithPassword()"]');
+        if (settingsButton) settingsButton.focus();
+    }
+    
+    /**
+     * Prompts for a password before opening the settings panel.
+     */
+    async function openSettingsWithPassword() {
+        const storedPasswordHash = await localforage.getItem(LOCAL_FORAGE_KEYS.PASSWORD);
+        if (!storedPasswordHash) {
+            const { value: password } = await Swal.fire({ 
+                title: 'Set Your Settings Password', 
+                input: 'password', 
+                inputPlaceholder: 'Minimum 4 characters',
+                inputAttributes: { minlength: 4 },
+                showCancelButton: true,
+                validationMessage: 'Password must be at least 4 characters long.'
+            });
+            if (password && password.length >= 4) {
+                await localforage.setItem(LOCAL_FORAGE_KEYS.PASSWORD, hashPassword(password));
+                Toast.fire({ icon: 'success', title: 'Password set!' });
+                openSettingsPanel();
+            } else if (password) {
+                Swal.fire('Password Not Set', 'Password must be at least 4 characters long.', 'error');
+            }
+        } else {
+            const { value: password } = await Swal.fire({ 
+                title: 'Enter Password to Access Settings', 
+                input: 'password', 
+                showCancelButton: true,
+                inputAttributes: { autocomplete: 'current-password' }
+            });
+            if (password && hashPassword(password) === storedPasswordHash) {
+                openSettingsPanel();
+            } else if (password) {
+                Swal.fire('Incorrect Password', 'The password you entered is incorrect.', 'error');
+            }
+        }
+    }
+
+    /**
+     * Renders the list of products in the settings panel.
+     */
+    function renderProductList() {
+        const productListContainer = document.getElementById('product-list-container');
+        if (shopProducts.length === 0) {
+            productListContainer.innerHTML = '<p class="text-center text-slate-500 py-4">No products added yet.</p>';
+            return;
+        }
+
+        productListContainer.innerHTML = shopProducts.sort((a,b) => a.name.localeCompare(b.name)).map(p => 
+            `<div class="flex justify-between items-center p-2 bg-slate-100 rounded">
+                <div>
+                    <span class="font-medium">${p.name}</span>
+                    <span class="text-xs text-slate-500"> (${p.category})</span>
+                    <span class="text-xs text-slate-400"> Min: ${p.minStock}</span>
+                </div>
+                <div>
+                    <button onclick="editProduct('${p.id}')" class="text-xs text-blue-600 mr-2 hover:underline">Edit</button>
+                    <button onclick="deleteProduct('${p.id}')" class="text-xs text-red-600 hover:underline">Delete</button>
+                </div>
+            </div>`
+        ).join('');
+    }
+
+    /**
+     * Clears the product form in the settings panel.
+     */
+    function clearProductForm() {
+        document.getElementById('product-form-title').textContent = 'Add New Product';
+        document.getElementById('product-id').value = '';
+        document.getElementById('product-name').value = '';
+        document.getElementById('product-price').value = '';
+        document.getElementById('product-cost').value = '';
+        document.getElementById('product-minstock').value = '';
+        document.getElementById('product-category').value = '25 KG';
+        ['product-name', 'product-price', 'product-cost', 'product-minstock'].forEach(id => {
+            document.getElementById(id)?.classList.remove('invalid');
+        });
+    }
+
+    /**
+     * Saves a new or updated product.
+     */
+    async function saveProduct() {
+        const nameInput = document.getElementById('product-name');
+        const priceInput = document.getElementById('product-price');
+        const costInput = document.getElementById('product-cost');
+        const minStockInput = document.getElementById('product-minstock');
+
+        const isNameValid = nameInput.value.trim() !== '';
+        const isPriceValid = validateNumberInput(priceInput);
+        const isCostValid = validateNumberInput(costInput);
+        const isMinStockValid = validateNumberInput(minStockInput, true);
+
+        if (!isNameValid) nameInput.classList.add('invalid'); else nameInput.classList.remove('invalid');
+
+        if (!isNameValid || !isPriceValid || !isCostValid || !isMinStockValid) {
+            return Toast.fire({ icon: 'error', title: 'Please correct invalid inputs!' });
+        }
+        
+        const productData = {
+            id: document.getElementById('product-id').value || 'prod_' + Date.now(),
+            name: nameInput.value.trim().toUpperCase(),
+            price: parseFloat(priceInput.value) || 0,
+            cost: parseFloat(costInput.value) || 0,
+            category: document.getElementById('product-category').value,
+            minStock: parseInt(minStockInput.value) || 0
+        };
+
+        const index = shopProducts.findIndex(p => p.id === productData.id);
+        if (index > -1) {
+            shopProducts[index] = productData;
+            Toast.fire({ icon: 'success', title: 'Product updated!' });
+        } else {
+            const duplicate = shopProducts.find(p => p.name === productData.name && p.category === productData.category);
+            if (duplicate) {
+                return Swal.fire('Duplicate Product', `A product with the name "${productData.name}" already exists in the "${productData.category}" category.`, 'error');
+            }
+            shopProducts.push(productData);
+            Toast.fire({ icon: 'success', title: 'Product added!' });
+        }
+        
+        await localforage.setItem(LOCAL_FORAGE_KEYS.PRODUCTS, shopProducts);
+        renderProductList();
+        clearProductForm();
+        renderInventoryTable(currentDailyReportCategory);
+    }
+
+    /**
+     * Loads product data into the form for editing.
+     */
+    function editProduct(id) {
+        const product = shopProducts.find(p => p.id === id);
+        if (product) {
+            document.getElementById('product-form-title').textContent = `Edit Product: ${product.name}`;
+            document.getElementById('product-id').value = product.id;
+            document.getElementById('product-name').value = product.name;
+            document.getElementById('product-price').value = product.price;
+            document.getElementById('product-cost').value = product.cost;
+            document.getElementById('product-minstock').value = product.minStock;
+            document.getElementById('product-category').value = product.category;
+            ['product-name', 'product-price', 'product-cost', 'product-minstock'].forEach(pid => {
+                document.getElementById(pid)?.classList.remove('invalid');
+            });
+        }
+    }
+
+    /**
+     * Deletes a product after confirmation.
+     */
+    async function deleteProduct(id) {
+        const productToDelete = shopProducts.find(p => p.id === id);
+        if (!productToDelete) return;
+
+        const { isConfirmed } = await Swal.fire({ 
+            title: 'Are you sure?', 
+            html: `You are about to delete <strong>${productToDelete.name} (${productToDelete.category})</strong>. This cannot be undone and will affect past reports data accuracy.`, 
+            icon: 'warning', 
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            confirmButtonColor: '#d33'
+        });
+        if (isConfirmed) {
+            shopProducts = shopProducts.filter(p => p.id !== id);
+            await localforage.setItem(LOCAL_FORAGE_KEYS.PRODUCTS, shopProducts);
+            Toast.fire({ icon: 'success', title: 'Product deleted!' });
+            renderProductList();
+            renderInventoryTable(currentDailyReportCategory);
+        }
+    }
+    
+    /**
+     * Changes the application's password.
+     */
+    async function savePassword() {
+        const current = document.getElementById('currentPassword').value;
+        const newPass = document.getElementById('newPassword').value;
+        const confirm = document.getElementById('confirmPassword').value;
+
+        const storedPasswordHash = await localforage.getItem(LOCAL_FORAGE_KEYS.PASSWORD);
+
+        if (hashPassword(current) !== storedPasswordHash) return Swal.fire('Error', 'Current password incorrect.', 'error');
+        if (newPass.length < 4) return Swal.fire('Error', 'New password must be at least 4 characters long.', 'error');
+        if (newPass !== confirm) return Swal.fire('Error', 'New passwords do not match.', 'error');
+
+        await localforage.setItem(LOCAL_FORAGE_KEYS.PASSWORD, hashPassword(newPass));
+        Swal.fire('Success', 'Password changed successfully!', 'success');
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+    }
+    
+    /**
+     * Allows editing the beginning stock for products.
+     */
+    async function editBeginningStock(categoryFilter = null) {
+        let initialReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+        if (!initialReport || initialReport.finalized) {
+            return Swal.fire('Cannot Edit', 'Can only edit beginning stock on the current, un-submitted report.', 'error');
+        }
+        
+        const storedPasswordHash = await localforage.getItem(LOCAL_FORAGE_KEYS.PASSWORD);
+        if (storedPasswordHash) {
+            const { value: password } = await Swal.fire({ 
+                title: 'Enter Password to Edit Beginning Stock', 
+                input: 'password', 
+                showCancelButton: true,
+                inputAttributes: { autocomplete: 'current-password' }
+            });
+            if (!password || hashPassword(password) !== storedPasswordHash) {
+                return password && Swal.fire('Incorrect Password', '', 'error');
+            }
+        }
+        
+        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a,b) => a.name.localeCompare(b.name));
+        if (products.length === 0) {
+             return Swal.fire('No Products', 'No products found to edit in this category.', 'info');
+        }
+
+        let modalHtml = `<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">
+            ${products.map(p => `
+                <div class="grid grid-cols-2 gap-4 items-center mb-2 p-2 border-b" data-product-id="${p.id}">
+                    <label for="begin-stock-${p.id}" class="font-medium">${p.name}</label>
+                    <input type="number" id="begin-stock-${p.id}" value="${initialReport.data[p.id]?.begin || 0}" class="border p-1 w-full rounded" oninput="validateNumberInput(this, true)">
+                </div>`).join('')}
+        </div>`;
+
+        const { isConfirmed } = await Swal.fire({ 
+            title: `Edit Beginning Stock for ${dayjs().format('MMMM D, YYYY')}`, 
+            html: modalHtml, 
+            width: '90%', maxWidth: '600px', 
+            showCancelButton: true, 
+            preConfirm: async () => {
+                let hasErrors = false;
+                document.querySelectorAll('.swal2-html-container input[type="number"]').forEach(input => {
+                    if (!validateNumberInput(input, true)) {
+                        hasErrors = true;
+                    }
+                });
+
+                if (hasErrors) {
+                    Swal.showValidationMessage('Please correct invalid inputs (must be non-negative numbers).');
+                    return false;
+                }
+
+                const freshReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+
+                document.querySelectorAll('.swal2-html-container [data-product-id]').forEach(row => {
+                    const productId = row.dataset.productId;
+                    const newBegin = parseInt(row.querySelector('input').value) || 0;
+                    
+                    let productData = freshReport.data[productId];
+
+                    if (productData) {
+                        productData.begin = newBegin;
+                    } else {
+                        const productInfo = shopProducts.find(p => p.id === productId);
+                        if (productInfo) {
+                            freshReport.data[productId] = {
+                                begin: newBegin,
+                                newStock: 0,
+                                end: newBegin,
+                                price: productInfo.price,
+                                cost: productInfo.cost
+                            };
+                        }
+                    }
+                });
+
+                await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, freshReport);
+                return true;
+            }
+        });
+        if (isConfirmed) {
+            Toast.fire({ icon: 'success', title: 'Beginning stock updated!' });
+            renderInventoryTable(currentDailyReportCategory);
+        }
+    }
+
+    /**
+     * Allows editing the selling prices for products.
+     */
+    async function editPrices(categoryFilter = null) {
+        const products = (categoryFilter ? shopProducts.filter(p => p.category === categoryFilter) : shopProducts).sort((a,b) => a.name.localeCompare(b.name));
+        if (products.length === 0) {
+             return Swal.fire('No Products', 'No products found to edit in this category.', 'info');
+        }
+
+        let modalHtml = `<div class="text-left max-h-[60vh] overflow-y-auto p-2 border rounded">
+            ${products.map(p => `
+                <div class="grid grid-cols-2 gap-4 items-center mb-2 p-2 border-b" data-product-id="${p.id}">
+                    <label for="price-input-${p.id}" class="font-medium">${p.name}</label>
+                    <input type="number" id="price-input-${p.id}" step="0.01" value="${p.price.toFixed(2)}" class="border p-1 w-full rounded" oninput="validateNumberInput(this)">
+                </div>`).join('')}
+        </div>`;
+
+        const { isConfirmed } = await Swal.fire({ 
+            title: `Edit Product Selling Prices`, 
+            html: modalHtml, 
+            width: '90%', maxWidth: '600px', 
+            showCancelButton: true, 
+            preConfirm: async () => {
+                const invalidInputs = Array.from(document.querySelectorAll('.swal2-html-container input.invalid')).filter(input => input.style.display !== 'none');
+                if (invalidInputs.length > 0) { 
+                    Swal.showValidationMessage('Please correct invalid inputs (must be positive numbers).'); 
+                    return false; 
+                }
+
+                const todayReport = await localforage.getItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`);
+                document.querySelectorAll('.swal2-html-container [data-product-id]').forEach(row => {
+                    const productId = row.dataset.productId;
+                    const newPrice = parseFloat(row.querySelector('input').value) || 0;
+                    
+                    const productInShop = shopProducts.find(p => p.id === productId);
+                    if (productInShop) productInShop.price = newPrice;
+
+                    if(todayReport && !todayReport.finalized && todayReport.data[productId]) {
+                        todayReport.data[productId].price = newPrice;
+                    }
+                });
+                await localforage.setItem(LOCAL_FORAGE_KEYS.PRODUCTS, shopProducts);
+                if (todayReport && !todayReport.finalized) {
+                    await localforage.setItem(`${LOCAL_FORAGE_KEYS.REPORTS_PREFIX}${todayDateString}`, todayReport);
+                }
+            }
+        });
+        if (isConfirmed) {
+            Toast.fire({ icon: 'success', title: 'Prices updated!' });
+            renderInventoryTable(currentDailyReportCategory);
+        }
+    }
+
+    /**
+     * Exports all application data to a JSON file.
+     */
+    async function exportAllData() {
+        try {
+            const allData = {};
+            const keys = await localforage.keys();
+            for (const key of keys) {
+                allData[key] = await localforage.getItem(key);
+            }
+            const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `rice_inventory_backup_${dayjs().format('YYYY-MM-DD_HHmmss')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            Toast.fire({icon: 'success', title: 'Data exported successfully!'});
+        } catch (error) { 
+            console.error('Export failed:', error);
+            Swal.fire('Export Failed', 'An error occurred during data export.', 'error'); 
+        }
+    }
+
+    /**
+     * Imports data from a selected JSON file.
+     */
+    async function importData() {
+        const { value: file } = await Swal.fire({ 
+            title: 'Select Backup File to Import', 
+            html: `<strong>WARNING:</strong> Importing data will permanently overwrite ALL existing data. Proceed with caution!`, 
+            icon: 'warning', 
+            input: 'file', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, Import Data'
+        });
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    await localforage.clear();
+                    for (const key in data) {
+                        await localforage.setItem(key, data[key]);
+                    }
+                    await Swal.fire('Import Successful', 'Application data has been imported. The page will now reload.', 'success');
+                    location.reload();
+                } catch (error) { 
+                    console.error('Import failed:', error);
+                    Swal.fire('Import Failed', 'Invalid backup file or data format.', 'error'); 
+                }
+            };
+            reader.readAsText(file);
+        }
+    }
+
+    /**
+     * Resets all application data after confirmation.
+     */
+    async function resetData() {
+        const { isConfirmed } = await Swal.fire({ 
+            title: 'ARE YOU ABSOLUTELY SURE?', 
+            html: `This action will permanently delete ALL inventory, sales reports, and settings data. This cannot be undone.<br>Type <strong>RESET</strong> in the box below to confirm.`, 
+            icon: 'warning', 
+            input: 'text', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33', 
+            preConfirm: (value) => {
+                if (value.toUpperCase() !== 'RESET') {
+                    Swal.showValidationMessage('You must type "RESET" to confirm.');
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        if (isConfirmed) {
+            await localforage.clear();
+            await Swal.fire('Data Reset', 'All application data has been deleted. The page will now reload.', 'success');
+            location.reload();
+        }
+    }
+
+    // --- Event Listeners ---
+    document.addEventListener('DOMContentLoaded', initializeApp);
+  </script>
+</body>
+</html>
+```
