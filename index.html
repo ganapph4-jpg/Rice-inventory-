@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Operations Tracker</title>
+    <!-- SWEETALERT2 SCRIPT -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* General Styles - Mobile-first defaults */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5; 
+            color: #1c1e21; 
+            margin: 0; 
+            padding: 10px; /* Default body padding for mobile */
+            line-height: 1.6; 
+        }
+        .container {
+            width: 100%; 
+            max-width: 1200px; /* Standard max width for larger screens */
+            margin: 0 auto; 
+            background: #fff;
+            padding: 15px; /* Default container padding for mobile */
+            border-radius: 8px; /* Default border-radius for mobile */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .title-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 10px; /* Smaller gap for mobile */
+            margin-bottom: 15px; 
+        }
+        h1, h2, h3, h4 { 
+            color: #333; 
+            text-align: center; 
+            margin-top: 0; 
+            margin-bottom: 10px; /* Smaller default margins */
+        }
+        #settings-icon { 
+            font-size: 20px; /* Smaller icon for mobile */
+            cursor: pointer; 
+            opacity: 0.6; 
+            transition: opacity 0.2s; 
+            user-select: none; 
+            padding: 5px; 
+        }
+        #settings-icon:hover { 
+            opacity: 1; 
+        }
+
+        /* Form & Button Styles */
+        input, select, button {
+            padding: 10px; /* Smaller default padding for inputs/buttons */
+            margin-top: 6px; 
+            margin-bottom: 12px; 
+            border: 1px solid #dddfe2;
+            border-radius: 6px; 
+            width: 100%; 
+            box-sizing: border-box; 
+            font-size: 15px; /* Smaller default font size */
+        }
+        button { 
+            background-color: #1877f2; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: background-color 0.2s; 
+        }
+        button:hover { 
+            background-color: #166fe5; 
+        }
+        
+        /* View Management */
+        #staff-view { 
+            display: block; 
+        }
+        #owner-dashboard { 
+            display: none; 
+        }
+        .staff-form { 
+            max-width: 500px; 
+            margin: 15px auto; /* Smaller margins for mobile */
+            padding: 15px; /* Smaller padding for mobile */
+            border: 1px solid #e0e0e0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+        }
+        
+        /* --- Owner Dashboard Specifics --- */
+        .dashboard-header { 
+            display: flex; /* Always flex for title and logout */
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding: 10px 0; 
+        }
+        #analytics-title {
+            text-align: left; /* Aligned left to accommodate logout button */
+            margin-bottom: 0; 
+            font-size: 1.4em; 
+            flex-grow: 1; 
+            margin-right: 10px; 
+        }
+        #logout-button { 
+            background-color: #fa3e3e; 
+            width: auto; 
+            padding: 8px 15px; 
+            flex-shrink: 0; 
+            margin: 0; 
+            font-size: 0.9em; 
+        }
+        #back-to-dashboard-button { 
+            background-color: #606770; 
+            width: auto; 
+            padding: 10px 15px; 
+            max-width: 150px; 
+            display: none; 
+            margin-bottom: 15px;
+            margin-left: auto; 
+            margin-right: auto;
+            font-size: 0.9em; 
+        }
+        #back-to-dashboard-button:hover { 
+            background-color: #4b4f56; 
+        }
+        
+        /* Business Navigation Buttons (Always side-by-side, compact) */
+        .business-nav-buttons { 
+            display: flex; 
+            flex-direction: row; /* Always row */
+            gap: 5px; 
+            margin-bottom: 20px; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+        }
+        .business-nav-button {
+            flex-grow: 1; 
+            flex-shrink: 1; 
+            flex-basis: 0; 
+            background-color: #e4e6eb; 
+            color: #606770;
+            border: none; 
+            padding: 8px; 
+            border-radius: 6px; 
+            font-size: 0.85em; 
+            cursor: pointer;
+            text-align: center; 
+            min-width: 70px; 
+            max-width: 120px; 
+        }
+        .business-nav-button.active { 
+            background-color: #1877f2; 
+            color: white; 
+            font-weight: bold; 
+        }
+        
+        /* Log Controls */
+        .log-controls { 
+            text-align: center; 
+            margin-top: 20px; 
+            margin-bottom: 0; 
+            border-top: 1px solid #eee; 
+            padding-top: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: stretch; 
+            gap: 10px; 
+            background-color: #fcfcfc; 
+            border-radius: 8px;
+            padding: 15px; 
+        }
+        .log-controls label { 
+            margin-right: 0; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            flex-shrink: 0; 
+            text-align: left; 
+        }
+        #month-filter, #export-csv-button { 
+            padding: 8px; 
+            font-size: 0.9em; 
+            width: 100%; 
+            margin: 0; 
+            max-width: none; 
+        }
+        #export-csv-button { 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            padding: 10px 15px;
+            border-radius: 6px; 
+            font-size: 0.9em; 
+            cursor: pointer; 
+            width: 100%; 
+            margin: 0;
+            white-space: nowrap; 
+            flex-shrink: 0; 
+        }
+        #export-csv-button:hover { 
+            background-color: #45a049; 
+        }
+        
+        /* --- ENHANCED: Excel-Style Log --- */
+        .log-container { 
+            border: 1px solid #dddfe2; 
+            border-radius: 6px; 
+            overflow: auto; 
+            max-height: 400px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+            background-color: #fff;
+        }
+        .transaction-list { 
+            list-style: none; 
+            padding: 0; 
+            margin: 0; 
+        }
+        .log-header, .transaction-item, .log-totals-row { /* Include totals row in grid */
+            display: grid;
+            /* Order: Date, Cash, Sales, Report, Actions */
+            grid-template-columns: minmax(90px, 1.5fr) minmax(70px, 1fr) minmax(70px, 1fr) minmax(60px, 0.8fr) minmax(30px, 0.4fr); 
+            gap: 8px; 
+            padding: 10px 12px; 
+            align-items: center;
+            font-size: 0.85em; 
+        }
+        .log-header {
+            background-color: #f5f6f7; 
+            font-weight: bold; 
+            color: #4b4f56;
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+            border-bottom: 1px solid #e9ebee; 
+        }
+        .transaction-item { 
+            border-top: 1px solid #e9ebee; 
+            position: relative;
+        }
+        .transaction-list li:nth-child(odd):not(.log-header):not(.log-totals-row) { /* Exclude totals row from zebra */
+            background-color: #f7f8fa; 
+        } 
+
+        /* Totals Row Styling */
+        .log-totals-row {
+            background-color: #e6f7ff; /* Light blue background */
+            font-weight: bold;
+            border-top: 2px solid #1877f2; /* Stronger top border */
+            color: #1877f2;
+            padding: 12px 15px; /* Slightly more padding */
+            font-size: 0.9em;
+            position: sticky; /* Make it sticky to the bottom if container scrolls */
+            bottom: 0;
+            z-index: 9;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle shadow above it */
+        }
+        .log-totals-row span:first-child {
+            text-align: left;
+            /* Span across Date and Cash columns for "Total for..." label */
+            grid-column: 1 / 3; 
+        }
+        .log-totals-row span:nth-child(2) { /* This will be the Total Cash Value */
+            text-align: right;
+            color: #1d2129;
+            /* Explicitly place it under the cash column visually */
+            grid-column: 3; 
+        }
+        /* Hide remaining columns for the totals row */
+        .log-totals-row span:nth-child(3), /* This was the Total Sales value, now hidden */
+        .log-totals-row span:nth-child(4), /* Report */
+        .log-totals-row span:nth-child(5) { /* Actions */
+            display: none; /* Hide these columns in totals row */
+        }
+
+
+        .text-right { 
+            text-align: right; 
+        }
+        .sales-color { 
+            color: #31a24c; 
+            font-weight: bold; 
+        }
+        .cash-color { 
+            color: #1d2129; 
+            font-weight: 500; 
+        }
+
+        /* Action Buttons within Log (Kebab Menu) */
+        .log-actions-container {
+            position: relative;
+            text-align: center;
+        }
+        .kebab-menu-button {
+            background: none;
+            border: none;
+            font-size: 1.3em; 
+            color: #606770;
+            cursor: pointer;
+            padding: 2px 5px; 
+            line-height: 1; 
+            margin: 0; 
+            width: auto; 
+            display: inline-block; 
+        }
+        .kebab-menu-button:hover {
+            background-color: #e4e6eb;
+            border-radius: 50%;
+        }
+        .action-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 80%; 
+            background-color: #fff;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 20; 
+            min-width: 110px; 
+            text-align: left;
+            padding: 3px 0; 
+        }
+        .action-menu.active {
+            display: block;
+        }
+        .action-menu button {
+            display: block;
+            width: 100%;
+            padding: 6px 10px; 
+            background: none;
+            border: none;
+            color: #1c1e21;
+            font-weight: normal;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.8em; 
+            margin: 0; 
+            border-radius: 0; 
+        }
+        .action-menu button:hover {
+            background-color: #f0f2f5;
+        }
+        .action-menu .edit-log-btn { color: #ff9800; }
+        .action-menu .delete-log-btn { color: #f44336; }
+
+
+        .view-report-btn { 
+            padding: 5px 8px; 
+            font-size: 0.75em; 
+            width: auto; 
+            margin: 0; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            display: inline-block;
+            background-color: #1877f2; 
+            color: white; 
+        }
+        .view-report-btn:hover:not(:disabled) { background-color: #166fe5; }
+        .view-report-btn:disabled { background-color: #e4e6eb; color: #bec3c9; cursor: not-allowed; }
+
+        .swal2-image-modal .swal2-image { max-width: 90vw !important; max-height: 80vh !important; width: auto; height: auto; }
+        
+        /* --- DESKTOP / TABLET RESPONSIVENESS (Overrides for larger screens) --- */
+        @media (min-width: 769px) {
+            body { 
+                padding: 20px; 
+            }
+            .container { 
+                padding: 25px 30px; 
+                border-radius: 10px; 
+            }
+            .title-container { 
+                gap: 15px; 
+                margin-bottom: 20px; 
+            }
+            h1 { font-size: 2em; } 
+            #settings-icon { font-size: 24px; }
+
+            /* Dashboard Header */
+            .dashboard-header { 
+                margin-bottom: 20px; 
+                padding: 15px 0; 
+            }
+            #analytics-title {
+                font-size: 2em; 
+            }
+            #logout-button { 
+                padding: 10px 20px; 
+                max-width: 120px; 
+                font-size: 1em; 
+                margin-left: 20px; 
+            }
+
+            /* Business Nav Buttons - Desktop: horizontal */
+            .business-nav-buttons { 
+                gap: 10px; 
+                margin-bottom: 30px; 
+            }
+            .business-nav-button { 
+                padding: 12px; 
+                font-size: 1em; 
+                min-width: 120px; 
+                max-width: 180px; 
+            }
+
+            /* Log Controls - Desktop: horizontal */
+            .log-controls { 
+                flex-direction: row; 
+                gap: 15px; 
+                margin-bottom: 0; 
+                padding-top: 20px; 
+            }
+            .log-controls label { 
+                margin-bottom: 0; 
+                text-align: center; 
+            }
+            #month-filter, #export-csv-button { 
+                padding: 10px; 
+                font-size: 1em; 
+                width: auto; 
+                max-width: 150px; 
+            }
+
+            /* Log Table */
+            .log-container { 
+                max-height: 500px; 
+            }
+            .log-header, .transaction-item, .log-totals-row {
+                grid-template-columns: 1.8fr 1.2fr 1.2fr 1fr 0.5fr; 
+                gap: 10px; 
+                padding: 12px 15px; 
+                font-size: 0.9em; 
+            }
+            .log-totals-row span:first-child {
+                grid-column: 1 / 3;
+            }
+            .kebab-menu-button { font-size: 1.5em; padding: 2px 8px; }
+            .action-menu { top: 100%; min-width: 120px; padding: 5px 0; }
+            .action-menu button { padding: 8px 15px; font-size: 0.9em; }
+            .view-report-btn { padding: 6px 10px; font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- STAFF VIEW -->
+        <div id="staff-view">
+            <div class="title-container"><h1>Daily Business Report</h1><span id="settings-icon" title="Owner Login">⚙️</span></div>
+            <div id="back-to-dashboard-button" style="display: none;">
+                <button id="back-button">← Back to Dashboard</button>
+            </div>
+            <div class="staff-form">
+                <form id="data-entry-form">
+                    <input type="hidden" id="edit-entry-id"> <!-- Hidden field for edit ID -->
+                    <label for="business-select">Select Business:</label>
+                    <select id="business-select" required><option value="" disabled selected>Choose...</option><option>Laundry</option><option>Bakery</option><option>Rice</option></select>
+                    <label for="entry-date">Date:</label><input type="date" id="entry-date" required>
+                    <label for="total-sales">Total Sales for Today:</label><input type="number" id="total-sales" placeholder="e.g., 1500.50" min="0" step="0.01" required>
+                    <label for="cash-on-hand">Cash on Hand:</label><input type="number" id="cash-on-hand" placeholder="e.g., 2150.25" min="0" step="0.01" required>
+                    <label for="report-upload">Upload Picture Report (Optional):</label><input type="file" id="report-upload" accept="image/*">
+                    <button type="submit" id="submit-report-button">Submit Report</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- OWNER DASHBOARD -->
+        <div id="owner-dashboard">
+            <div class="dashboard-header">
+                <h1 id="analytics-title">Business Analytics</h1>
+                <button id="logout-button">Logout</button>
+            </div>
+            
+            <div class="business-nav-buttons">
+                <button class="business-nav-button" data-business="Laundry">Laundry</button>
+                <button class="business-nav-button" data-business="Bakery">Bakery</button>
+                <button class="business-nav-button" data-business="Rice">Rice</button>
+            </div>
+
+            <div id="log-container" class="log-container">
+                <ul id="analytics-log-list" class="transaction-list"></ul>
+            </div>
+
+            <!-- Log controls positioned BELOW the log -->
+            <div class="log-controls">
+                <label for="month-filter">Log For:</label>
+                <input type="month" id="month-filter">
+                <button id="export-csv-button">Export Log</button>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getFirestore, collection, query, where, orderBy, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+
+    // Your web app's Firebase configuration (PASTED HERE)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRpEBeHAh4WUbv-SKvcdDiy-ALbUs_Tt0",
+      authDomain: "businesstrackerapp-d4eff.firebaseapp.com",
+      projectId: "businesstrackerapp-d4eff",
+      storageBucket: "businesstrackerapp-d4eff.firebasestorage.app",
+      messagingSenderId: "318052949079",
+      appId: "1:318052949079:web:5d1c83c62a43704c555712",
+      measurementId: "G-6WBYRP9S6V" // Optional, if not using analytics you can remove this
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const reportsCollectionRef = collection(db, 'reports'); // Reference to your Firestore collection
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTS ---
+    const staffView = document.getElementById('staff-view');
+    const ownerDashboard = document.getElementById('owner-dashboard');
+    const dataEntryForm = document.getElementById('data-entry-form');
+    const logoutButton = document.getElementById('logout-button');
+    const settingsIcon = document.getElementById('settings-icon');
+    const businessNavButtons = document.querySelector('.business-nav-buttons');
+    const monthFilter = document.getElementById('month-filter');
+    const logList = document.getElementById('analytics-log-list');
+    const exportCsvButton = document.getElementById('export-csv-button');
+    const submitReportButton = document.getElementById('submit-report-button');
+    const editEntryIdInput = document.getElementById('edit-entry-id');
+    const backToDashboardButtonContainer = document.getElementById('back-to-dashboard-button');
+    const backButton = document.getElementById('back-button');
+
+    const OWNER_PASSWORD = 'root'; // WARNING: Not secure for production. Use Firebase Auth!
+
+    // --- DATA HANDLING ---
+    // getStoredData and setStoredData are NO LONGER USED with Firestore
+    
+    // Date format remains "Mon. Day Year" (e.g., "Sept. 1 2025")
+    const formatDate = (dateString) => {
+        const date = new Date(dateString + 'T00:00:00'); // Avoid timezone issues
+        const formatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+        return formatted.replace(/, (\d{4})/, ' $1'); // Removes comma before year, e.g., "Sept. 1 2025"
+    };
+
+    // --- ANALYTICS VIEW LOGIC ---
+    async function renderAnalyticsLog(businessName, month) {
+        logList.innerHTML = `<li class="log-header">
+                                <span>Date</span>
+                                <span class="text-right">Cash on Hand</span> 
+                                <span class="text-right">Total Sales</span> 
+                                <span style="text-align:center;">Report</span>
+                                <span style="text-align:center;">Actions</span>
+                            </li>`;
+        
+        try {
+            // Firestore query for documents in the selected month
+            const startDate = month + '-01';
+            const year = parseInt(month.substring(0, 4));
+            const monthNum = parseInt(month.substring(5, 7));
+            const nextMonthDate = new Date(year, monthNum, 1); // JS months are 0-indexed
+            const endDate = nextMonthDate.toISOString().slice(0, 7) + '-01'; // Start of next month
+            
+            const q = query(
+                reportsCollectionRef,
+                where('business', '==', businessName),
+                where('date', '>=', startDate),
+                where('date', '<', endDate), 
+                orderBy('date', 'desc')
+            );
+
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                const emptyLi = document.createElement('li');
+                emptyLi.innerHTML = `No entries found for this month.`;
+                emptyLi.style.textAlign = 'center';
+                emptyLi.style.padding = '20px';
+                emptyLi.style.color = '#606770';
+                logList.appendChild(emptyLi);
+                return;
+            }
+            
+            let currentMonthTotalCash = 0;
+
+            querySnapshot.forEach(documentSnapshot => {
+                const item = { id: documentSnapshot.id, ...documentSnapshot.data() }; 
+
+                currentMonthTotalCash += item.cashOnHand;
+
+                const li = document.createElement('li');
+                li.className = 'transaction-item';
+                const reportButtonHTML = item.imageUrl 
+                    ? `<button class="view-report-btn" data-img-src="${item.imageUrl}">View</button>`
+                    : `<button class="view-report-btn" disabled>N/A</button>`;
+                
+                li.innerHTML = `
+                    <span>${formatDate(item.date)}</span>
+                    <span class="text-right cash-color">₱${item.cashOnHand.toFixed(2)}</span> 
+                    <span class="text-right sales-color">₱${item.sales.toFixed(2)}</span> 
+                    <span style="text-align:center;">${reportButtonHTML}</span>
+                    <span class="log-actions-container">
+                        <button class="kebab-menu-button">⋮</button>
+                        <div class="action-menu">
+                            <button class="edit-log-btn" data-id="${item.id}" data-business="${item.business}">Edit</button>
+                            <button class="delete-log-btn" data-id="${item.id}" data-business="${item.business}">Delete</button>
+                        </div>
+                    </span>`;
+                logList.appendChild(li);
+            });
+
+            // Append the totals row - ONLY CASH ON HAND TOTAL
+            const totalsLi = document.createElement('li');
+            totalsLi.className = 'log-totals-row';
+            totalsLi.innerHTML = `
+                <span>Total for ${new Date(month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' })}:</span>
+                <span class="text-right">₱${currentMonthTotalCash.toFixed(2)}</span>
+                <span></span> <!-- Empty for Total Sales column -->
+                <span></span> <!-- Empty for Report column -->
+                <span></span> <!-- Empty for Actions column -->
+            `;
+            logList.appendChild(totalsLi);
+
+        } catch (error) {
+            console.error("Error fetching documents: ", error);
+            Swal.fire('Error', 'Could not load reports. Please check your internet connection and Firebase setup.', 'error');
+        }
+    }
+
+
+    monthFilter.addEventListener('change', () => {
+        const activeBusiness = document.querySelector('.business-nav-button.active');
+        if (activeBusiness) {
+            renderAnalyticsLog(activeBusiness.dataset.business, monthFilter.value); 
+        }
+    });
+    
+    logList.addEventListener('click', async (e) => { 
+        // Handle Kebab Menu Toggle
+        if (e.target.classList.contains('kebab-menu-button')) {
+            const actionMenu = e.target.nextElementSibling;
+            document.querySelectorAll('.action-menu.active').forEach(menu => {
+                if (menu !== actionMenu) menu.classList.remove('active');
+            });
+            actionMenu.classList.toggle('active');
+            e.stopPropagation(); 
+        } else if (!e.target.closest('.log-actions-container')) {
+            document.querySelectorAll('.action-menu.active').forEach(menu => {
+                menu.classList.remove('active');
+            });
+        }
+
+        // View Report Image
+        if (e.target.classList.contains('view-report-btn') && !e.target.disabled) {
+            document.querySelectorAll('.action-menu.active').forEach(menu => menu.classList.remove('active'));
+            const imgSrc = e.target.dataset.img-src; // Corrected to data-img-src
+            Swal.fire({ imageUrl: imgSrc, imageAlt: 'Uploaded Report', customClass: { image: 'swal2-image-modal' } });
+        }
+        // Edit Log Entry
+        if (e.target.classList.contains('edit-log-btn')) {
+            document.querySelectorAll('.action-menu.active').forEach(menu => menu.classList.remove('active'));
+
+            const entryId = e.target.dataset.id; 
+            try {
+                const docRef = doc(db, 'reports', entryId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const entryToEdit = { id: docSnap.id, ...docSnap.data() };
+
+                    ownerDashboard.style.display = 'none';
+                    staffView.style.display = 'block';
+                    backToDashboardButtonContainer.style.display = 'block';
+
+                    document.getElementById('business-select').value = entryToEdit.business;
+                    document.getElementById('entry-date').value = entryToEdit.date;
+                    document.getElementById('total-sales').value = entryToEdit.sales;
+                    document.getElementById('cash-on-hand').value = entryToEdit.cashOnHand;
+                    editEntryIdInput.value = entryToEdit.id;
+
+                    submitReportButton.textContent = 'Update Report';
+                    submitReportButton.style.backgroundColor = '#ff9800';
+                    submitReportButton.onmouseover = () => submitReportButton.style.backgroundColor = '#e68a00';
+                    submitReportButton.onmouseout = () => submitReportButton.style.backgroundColor = '#ff9800';
+
+                    document.getElementById('report-upload').value = ''; 
+                } else {
+                    Swal.fire('Error', 'Report not found for editing.', 'error');
+                }
+            } catch (error) {
+                console.error("Error fetching document for edit:", error);
+                Swal.fire('Error', 'Could not load report for editing.', 'error');
+            }
+        }
+        // Delete Log Entry
+        if (e.target.classList.contains('delete-log-btn')) {
+            document.querySelectorAll('.action-menu.active').forEach(menu => menu.classList.remove('active'));
+
+            const entryId = e.target.dataset.id; 
+            const businessName = e.target.dataset.business;
+            const currentMonth = monthFilter.value;
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this! This will also delete the uploaded image.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then(async (result) => { 
+                if (result.isConfirmed) {
+                    try {
+                        const docRef = doc(db, 'reports', entryId);
+                        const docSnap = await getDoc(docRef);
+                        const imageUrl = docSnap.exists() ? docSnap.data().imageUrl : null;
+
+                        await deleteDoc(docRef); // Delete Firestore document
+
+                        if (imageUrl) {
+                            // If an image was associated, try to delete it from Storage
+                            const imageRef = ref(storage, imageUrl); // Use ref directly with URL
+                            await deleteObject(imageRef);
+                        }
+                        
+                        Swal.fire('Deleted!', 'Your report and image have been deleted.', 'success');
+                        
+                        const activeBusiness = document.querySelector('.business-nav-button.active');
+                        if (activeBusiness && activeBusiness.dataset.business === businessName) {
+                            renderAnalyticsLog(businessName, currentMonth); 
+                        }
+                    } catch (error) {
+                        console.error("Error deleting document or image:", error);
+                        Swal.fire('Error', 'Failed to delete report or associated image.', 'error');
+                    }
+                }
+            });
+        }
+    });
+
+    // Close action menus if clicking anywhere on the document (not on the menu itself)
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.log-actions-container')) {
+            document.querySelectorAll('.action-menu.active').forEach(menu => {
+                menu.classList.remove('active');
+            });
+        }
+    });
+
+
+    // --- CSV EXPORT ---
+    exportCsvButton.addEventListener('click', async () => { 
+        const activeBusiness = document.querySelector('.business-nav-button.active').dataset.business;
+        const currentMonth = monthFilter.value;
+
+        try {
+            const startDate = currentMonth + '-01';
+            const year = parseInt(currentMonth.substring(0, 4));
+            const monthNum = parseInt(currentMonth.substring(5, 7));
+            const nextMonthDate = new Date(year, monthNum, 1);
+            const endDate = nextMonthDate.toISOString().slice(0, 7) + '-01';
+
+            const q = query(
+                reportsCollectionRef,
+                where('business', '==', activeBusiness),
+                where('date', '>=', startDate),
+                where('date', '<', endDate),
+                orderBy('date', 'desc')
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                Swal.fire('No Data', 'No entries to export for the selected month and business.', 'info');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Business,Date,Cash on Hand,Total Sales,Report Image URL\n"; 
+
+            let currentMonthTotalCash = 0;
+            let currentMonthTotalSales = 0;
+
+            querySnapshot.forEach(documentSnapshot => {
+                const item = documentSnapshot.data();
+                currentMonthTotalCash += item.cashOnHand;
+                currentMonthTotalSales += item.sales;
+
+                const sales = item.sales.toFixed(2);
+                const cashOnHand = item.cashOnHand.toFixed(2);
+                const imageUrl = item.imageUrl || "N/A"; 
+                csvContent += `${item.business},${item.date},${cashOnHand},${sales},"${imageUrl}"\n`;
+            });
+
+            // Add totals row to CSV - ONLY CASH ON HAND TOTAL
+            csvContent += `Total for ${new Date(currentMonth + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' })},,${currentMonthTotalCash.toFixed(2)},,\n`; 
+
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${activeBusiness}_${currentMonth}_reports.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Error exporting data:", error);
+            Swal.fire('Error', 'Failed to export data.', 'error');
+        }
+    });
+
+
+    // --- NAVIGATION & LOGIN ---
+    businessNavButtons.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            const businessName = e.target.dataset.business;
+            document.querySelectorAll('.business-nav-button').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+
+            document.getElementById('analytics-title').textContent = `${businessName} Analytics`;
+            
+            const currentMonthSelected = monthFilter.value;
+            renderAnalyticsLog(businessName, currentMonthSelected); 
+        }
+    });
+    
+    settingsIcon.addEventListener('click', () => {
+        Swal.fire({
+            title: 'Owner Access', input: 'password', inputPlaceholder: 'Enter password',
+            showCancelButton: true, confirmButtonText: 'Login', showLoaderOnConfirm: true,
+            preConfirm: (p) => (p === OWNER_PASSWORD ? true : Swal.showValidationMessage('Incorrect Password')),
+        }).then((result) => {
+            if (result.isConfirmed) {
+                staffView.style.display = 'none';
+                ownerDashboard.style.display = 'block'; 
+                backToDashboardButtonContainer.style.display = 'none'; 
+                
+                const firstBusinessButton = document.querySelector('.business-nav-button');
+                if(firstBusinessButton) {
+                    firstBusinessButton.click();
+                } else {
+                    document.getElementById('analytics-title').textContent = `Welcome, Owner!`;
+                    logList.innerHTML = `<li style="text-align:center; padding:20px; color:#606770;">No businesses configured. Add an entry in staff view.</li>`;
+                }
+            }
+        });
+    });
+
+    logoutButton.addEventListener('click', () => {
+        ownerDashboard.style.display = 'none';
+        staffView.style.display = 'block';
+        resetStaffFormState(); 
+        backToDashboardButtonContainer.style.display = 'none';
+        document.querySelectorAll('.business-nav-button').forEach(btn => btn.classList.remove('active'));
+    });
+
+    backButton.addEventListener('click', () => {
+        ownerDashboard.style.display = 'block'; 
+        staffView.style.display = 'none';
+        backToDashboardButtonContainer.style.display = 'none';
+        resetStaffFormState();
+        
+        const activeBusiness = document.querySelector('.business-nav-button.active');
+        if (activeBusiness) {
+            renderAnalyticsLog(activeBusiness.dataset.business, monthFilter.value);
+        }
+    });
+
+    function resetStaffFormState() {
+        dataEntryForm.reset();
+        document.getElementById('entry-date').valueAsDate = new Date();
+        editEntryIdInput.value = '';
+        submitReportButton.textContent = 'Submit Report';
+        submitReportButton.style.backgroundColor = '#1877f2';
+        submitReportButton.onmouseover = () => submitReportButton.style.backgroundColor = '#166fe5';
+        submitReportButton.onmouseout = () => submitReportButton.style.backgroundColor = '#1877f2';
+    }
+
+
+    // --- STAFF FORM with IMAGE to FIREBASE STORAGE CONVERSION ---
+    
+    dataEntryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const reportFile = document.getElementById('report-upload').files[0];
+        let imageUrl = null; 
+        let existingImageUrl = null; 
+
+        const business = document.getElementById('business-select').value;
+        const date = document.getElementById('entry-date').value;
+        const sales = parseFloat(document.getElementById('total-sales').value);
+        const cashOnHand = parseFloat(document.getElementById('cash-on-hand').value);
+
+        if (!business || !date || isNaN(sales) || isNaN(cashOnHand)) {
+            Swal.fire('Error', 'Please fill out all required fields with valid numbers.', 'error'); return;
+        }
+        
+        const entryData = { business, date, sales, cashOnHand };
+        const editId = editEntryIdInput.value;
+        
+        Swal.fire({
+            title: editId ? 'Updating Report...' : 'Submitting Report...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            if (reportFile) {
+                // Determine the correct path for the image in Firebase Storage
+                const storagePath = `reports_images/${business}/${date}_${reportFile.name}`;
+                const storageRefInstance = ref(storage, storagePath);
+                
+                const snapshot = await uploadBytes(storageRefInstance, reportFile);
+                imageUrl = await getDownloadURL(snapshot.ref);
+                entryData.imageUrl = imageUrl;
+            } else if (editId) {
+                const docRef = doc(db, 'reports', editId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().imageUrl) {
+                    existingImageUrl = docSnap.data().imageUrl;
+                    entryData.imageUrl = existingImageUrl; 
+                }
+            }
+
+            if (editId) { 
+                const docRef = doc(db, 'reports', editId);
+                await updateDoc(docRef, entryData);
+                Swal.fire({ title: 'Success!', text: 'Report updated successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
+                
+                ownerDashboard.style.display = 'block'; 
+                staffView.style.display = 'none';
+                backToDashboardButtonContainer.style.display = 'none';
+                
+                const activeBusiness = document.querySelector('.business-nav-button.active');
+                if (activeBusiness) {
+                    renderAnalyticsLog(activeBusiness.dataset.business, monthFilter.value);
+                }
+                resetStaffFormState();
+
+            } else { 
+                const q = query(
+                    reportsCollectionRef,
+                    where('business', '==', business),
+                    where('date', '==', date)
+                );
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    Swal.fire({
+                        title: 'Duplicate Entry!',
+                        text: `A report for ${business} on ${formatDate(date)} already exists. Do you want to overwrite it?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, overwrite!'
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const existingDocId = querySnapshot.docs[0].id;
+                            const existingData = querySnapshot.docs[0].data();
+
+                            if (imageUrl && existingData.imageUrl && existingData.imageUrl !== imageUrl) {
+                                try {
+                                    const oldImageRef = ref(storage, existingData.imageUrl);
+                                    await deleteObject(oldImageRef);
+                                } catch (imgError) {
+                                    console.warn("Could not delete old image:", imgError); 
+                                }
+                            } else if (!imageUrl && existingData.imageUrl) {
+                                entryData.imageUrl = existingData.imageUrl;
+                            }
+
+                            const docRef = doc(db, 'reports', existingDocId);
+                            await updateDoc(docRef, entryData);
+                            Swal.fire({ title: 'Success!', text: 'Report overwritten successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
+                            dataEntryForm.reset();
+                            document.getElementById('entry-date').valueAsDate = new Date();
+                            const activeBusiness = document.querySelector('.business-nav-button.active');
+                            if (activeBusiness && activeBusiness.dataset.business === business) {
+                                renderAnalyticsLog(business, monthFilter.value);
+                            }
+                        } else {
+                            Swal.close(); 
+                        }
+                    });
+                } else {
+                    await addDoc(reportsCollectionRef, entryData); // Add new document
+                    Swal.fire({ title: 'Success!', text: 'Report submitted successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
+                    dataEntryForm.reset();
+                    document.getElementById('entry-date').valueAsDate = new Date();
+                    const activeBusiness = document.querySelector('.business-nav-button.active');
+                    if (activeBusiness && activeBusiness.dataset.business === business) {
+                        renderAnalyticsLog(business, monthFilter.value);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error submitting/updating report:", error);
+            Swal.fire('Error', `Failed to submit report: ${error.message}`, 'error');
+        }
+    });
+
+    // --- INITIALIZATION ---
+    document.getElementById('entry-date').valueAsDate = new Date();
+    const today = new Date();
+    monthFilter.value = today.toISOString().slice(0, 7);
+});
+</script>
+
+</body>
+</html>
